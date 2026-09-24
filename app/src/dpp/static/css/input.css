@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* Brand tokens from spec arch-07 (party design instructions). */
+@theme {
+  --color-brand-yellow: #ffe000;
+  --color-brand-blue: #032d67;
+  --color-brand-cyan: #00a7e7;
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+.htmx-indicator {
+  opacity: 0;
+  transition: opacity 150ms ease-in;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  opacity: 1;
+}
+
+.module-card-title {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.module-carousel {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.module-carousel::-webkit-scrollbar {
+  display: none;
+}

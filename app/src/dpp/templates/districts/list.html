@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Gliederungen{% endblock %}
+
+{% macro render_node(node, identity) %}
+<li class="mt-1">
+  <div class="flex items-center gap-2">
+    <span class="font-bold">{{ node.district.name }}</span>
+    {% if identity.has_write_access(node.district.id) %}
+      <span class="text-xs bg-brand-cyan text-white px-2 py-0.5 rounded">Schreibzugriff</span>
+    {% endif %}
+    <a href="/campaigns?district_id={{ node.district.id }}" class="text-xs underline text-brand-blue">Kampagnen</a>
+  </div>
+  {% if node.children %}
+  <ul class="ml-6 border-l border-gray-300 pl-4">
+    {% for child in node.children %}
+      {{ render_node(child, identity) }}
+    {% endfor %}
+  </ul>
+  {% endif %}
+</li>
+{% endmacro %}
+
+{% block content %}
+<h1 class="text-2xl font-black text-brand-blue mb-4">Gliederungshierarchie</h1>
+<p class="text-sm text-gray-600 mb-4">
+  Arbiträre Baumtiefe (siehe canv-01) — LV/BV/OV ist nur ein Beispiel, kein festes Schema.
+</p>
+<ul>
+  {% for node in forest %}
+    {{ render_node(node, identity) }}
+  {% endfor %}
+</ul>
+{% endblock %}

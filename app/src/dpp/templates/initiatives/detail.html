@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ initiative.name }}{% endblock %}
+{% block body_attrs %}data-initiative-id="{{ initiative.id }}"{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-black text-brand-blue mb-1">{{ initiative.name }}</h1>
+<p class="text-sm text-gray-600 mb-4">{{ initiative.district.name }}</p>
+{% if initiative.description %}<p class="mb-4">{{ initiative.description }}</p>{% endif %}
+
+<section class="bg-white rounded shadow p-4 mb-4">
+  <h2 class="font-bold text-brand-blue mb-1">Narrative Kohärenz (AI-gestützte Schätzung)</h2>
+  {% if initiative.coherence_score is not none %}
+    <p class="text-3xl font-black text-brand-cyan">{{ "%.0f"|format(initiative.coherence_score * 100) }}%</p>
+    <p class="text-xs text-gray-500">
+      Zuletzt berechnet: {{ initiative.coherence_computed_at }}. Heuristischer Richtwert, keine harte Metrik.
+    </p>
+  {% else %}
+    <p class="text-gray-400">
+      Noch nicht berechenbar (mindestens 2 Kampagnen mit Narrativ-Feldern nötig, und ein konfigurierter
+      Embedding-Anbieter — siehe adr-04).
+    </p>
+  {% endif %}
+</section>
+
+<section class="bg-white rounded shadow p-4 mb-4">
+  <h2 class="font-bold text-brand-blue mb-2">Kampagnen in dieser Initiative</h2>
+  <ul class="divide-y">
+    {% for c in members %}
+    <li class="py-2 flex justify-between items-center">
+      <a href="/campaigns/{{ c.id }}" class="text-brand-blue hover:underline">{{ c.thema or "(kein Thema)" }}</a>
+      {% if can_write %}
+      <form method="post" action="/initiatives/{{ initiative.id }}/members/{{ c.id }}/remove">
+        <button type="submit" class="text-xs text-red-600 underline">entfernen</button>
+      </form>
+      {% endif %}
+    </li>
+    {% else %}
+    <li class="py-2 text-gray-500">Noch keine Kampagnen zugeordnet.</li>
+    {% endfor %}
+  </ul>
+</section>
+
+{% if can_write and candidates %}
+<section class="bg-white rounded shadow p-4">
+  <h2 class="font-bold text-brand-blue mb-2">Kampagne hinzufügen</h2>
+  <form method="post" action="/initiatives/{{ initiative.id }}/members" class="flex gap-2 items-end">
+    <select name="campaign_id" class="border rounded px-2 py-1">
+      {% for c in candidates %}
+        <option value="{{ c.id }}">{{ c.thema or "(kein Thema)" }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="bg-brand-blue text-white font-bold px-3 py-1 rounded">Hinzufügen</button>
+  </form>
+  <p class="text-xs text-gray-500 mt-2">
+    Nur Kampagnen derselben Gliederung ({{ initiative.district.name }}) — v1-Beschränkung, siehe canv-01.
+  </p>
+</section>
+{% endif %}
+{% endblock %}

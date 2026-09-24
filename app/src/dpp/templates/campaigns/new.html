@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Neue Kampagne — Gliederung{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <a href="/campaigns" class="text-sm text-brand-blue underline">&larr; Zurück zu den Kampagnen</a>
+  <div class="mt-4 mb-6">
+    <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Schritt 1 von 4</p>
+    <h1 class="text-2xl font-black text-brand-blue">Wo findet die Kampagne statt?</h1>
+    <p class="text-gray-600 mt-2">Wähle die Gliederung, die diese Kampagne verantwortet. Du kannst die Kampagne später mit anderen Kampagnen derselben Gliederung zu einer Initiative bündeln.</p>
+  </div>
+
+  <form method="post" action="/campaigns/new" class="bg-white rounded shadow p-5" hx-indicator="#request-indicator">
+    <label for="district_id" class="block font-bold text-sm mb-2">Gliederung</label>
+    <select id="district_id" name="district_id" required class="w-full border rounded px-3 py-2 mb-5">
+      {% for d in districts %}
+        <option value="{{ d.id }}" {% if not identity.has_write_access(d.id) %}disabled{% endif %}>
+          {{ d.name }}{% if not identity.has_write_access(d.id) %} (kein Schreibzugriff){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+    {% if not districts %}
+      <p class="text-sm text-red-700 mb-4">Es sind noch keine Gliederungen angelegt.</p>
+    {% endif %}
+    <div class="flex justify-end">
+      <button type="submit" {% if not districts %}disabled{% endif %} class="bg-brand-blue text-white font-bold px-4 py-2 rounded disabled:opacity-50">
+        Weiter zur Zieldefinition <span aria-hidden="true">→</span>
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Anmeldung erforderlich{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded shadow p-6 max-w-md mx-auto text-center">
+  {% if is_development %}
+    <h1 class="text-xl font-black text-brand-blue mb-2">Anmeldung erforderlich</h1>
+    <p class="text-sm text-gray-600">
+      Bitte oben in der Dev-Leiste einen Nutzer auswählen, um fortzufahren.
+    </p>
+  {% else %}
+    <h1 class="text-xl font-black text-brand-blue mb-2">Nicht authentifiziert</h1>
+    <p class="text-sm text-gray-600">
+      Diese Anwendung erwartet Authentifizierungs-Header von einem vorgeschalteten
+      Forward-Auth-Proxy (siehe arch-01).
+    </p>
+  {% endif %}
+</div>
+{% endblock %}

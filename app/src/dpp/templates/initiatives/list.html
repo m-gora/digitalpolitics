@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Initiativen{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-black text-brand-blue mb-4">Initiativen</h1>
+<p class="text-sm text-gray-600 mb-4">
+  Bündelt Kampagnen innerhalb einer Gliederung und schätzt ihre narrative Kohärenz ein (siehe canv-01).
+  Für v1 bewusst auf eine einzelne Gliederung beschränkt.
+</p>
+
+<section class="mb-8 bg-white rounded shadow p-4">
+  <h2 class="font-bold mb-2">Neue Initiative anlegen</h2>
+  <form method="post" action="/initiatives" class="flex gap-2 items-end flex-wrap">
+    <div>
+      <label class="block text-xs font-bold text-gray-600">Gliederung</label>
+      <select name="district_id" class="border rounded px-2 py-1">
+        {% for d in districts %}
+          <option value="{{ d.id }}" {% if not identity.has_write_access(d.id) %}disabled{% endif %}>
+            {{ d.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-gray-600">Name</label>
+      <input type="text" name="name" required class="border rounded px-2 py-1" />
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-gray-600">Beschreibung</label>
+      <input type="text" name="description" class="border rounded px-2 py-1" />
+    </div>
+    <button type="submit" class="bg-brand-blue text-white font-bold px-3 py-1 rounded">Anlegen</button>
+  </form>
+</section>
+
+<div class="grid gap-3">
+  {% for i in initiatives %}
+  <a href="/initiatives/{{ i.id }}" class="block bg-white rounded shadow p-4 hover:shadow-md">
+    <div class="flex justify-between items-center">
+      <div>
+        <div class="font-bold text-brand-blue">{{ i.name }}</div>
+        <div class="text-xs text-gray-500">{{ i.district.name }}</div>
+      </div>
+      <div class="text-sm">
+        {% if i.coherence_score is not none %}
+          Kohärenz: <strong>{{ "%.0f"|format(i.coherence_score * 100) }}%</strong>
+        {% else %}
+          <span class="text-gray-400">Kohärenz: n/a</span>
+        {% endif %}
+      </div>
+    </div>
+  </a>
+  {% else %}
+  <p class="text-gray-500">Noch keine Initiativen.</p>
+  {% endfor %}
+</div>
+{% endblock %}

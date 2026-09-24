@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Kampagnen{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-black text-brand-blue mb-4">Kampagnen</h1>
+
+<div class="mb-8">
+  <a href="/campaigns/new" class="inline-flex items-center gap-2 bg-brand-blue text-white font-bold px-4 py-2 rounded hover:bg-brand-cyan">
+    <span aria-hidden="true">＋</span> Neue Kampagne
+  </a>
+</div>
+
+<table class="w-full bg-white rounded shadow overflow-hidden">
+  <thead class="bg-gray-100 text-left text-sm">
+    <tr>
+      <th class="p-2">Thema</th>
+      <th class="p-2">Gliederung</th>
+      <th class="p-2">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in campaigns %}
+    <tr class="border-t">
+      <td class="p-2">
+        <a href="/campaigns/{{ c.id }}" class="text-brand-blue font-bold hover:underline">
+          {{ c.thema or "(kein Thema)" }}
+        </a>
+      </td>
+      <td class="p-2 text-sm text-gray-600">{{ c.district.name }}</td>
+      <td class="p-2">
+        <span class="text-xs font-bold uppercase px-2 py-0.5 rounded bg-gray-200">{{ c.status.value }}</span>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3" class="p-4 text-center text-gray-500">Noch keine Kampagnen.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

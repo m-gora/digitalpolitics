@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Digital Politics Platform{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,700;0,800;0,900&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/static/css/output.css" />
+  <link rel="icon" type="image/svg+xml" href="/static/img/fdp-logo.svg" />
+  <script src="/static/js/htmx.min.js" defer></script>
+</head>
+<body class="font-sans bg-gray-50 text-gray-900" {% block body_attrs %}{% endblock %}>
+  <header class="bg-brand-blue text-white" hx-boost="true" hx-target="#main" hx-select="#main" hx-swap="outerHTML" hx-indicator="#request-indicator">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <a href="/" aria-label="Zur Startseite" class="shrink-0">
+        <svg class="h-9 w-auto" viewBox="0 0 178.08 69.73" role="img" aria-labelledby="fdp-nav-logo-title" xmlns="http://www.w3.org/2000/svg">
+          <title id="fdp-nav-logo-title">FDP</title>
+          <polygon fill="#FFE000" points="50.89 1 50.89 15.13 18.64 15.13 18.64 28.98 46.53 28.98 46.53 42.64 18.64 42.64 18.64 68.73 1 68.73 1 1 50.89 1" />
+          <path fill="#FFE000" d="M79.01,54.59h-6.9V15.13h7.7c11.92,0,19.33,5.91,19.33,19.43,0,14.92-6.51,20.03-20.13,20.03ZM83.68,1h-29.22v67.73h29.59c19.92,0,32.72-11.95,32.72-34.15S103.98,1,83.68,1Z" />
+          <path fill="#FFE000" d="M150.24,32.49c5.6,0,9.2-2.56,9.2-8.44s-3.7-8.92-9.2-8.92h-12.14v17.36h12.14ZM152.8,1c14.32,0,24.28,7.3,24.28,21.91,0,15.37-7.97,23.24-24.47,23.24h-14.51v22.58h-17.64V1h32.35Z" />
+        </svg>
+      </a>
+      <nav class="flex gap-4 text-sm font-bold">
+        <a href="/districts" class="hover:text-brand-cyan">Gliederungen</a>
+        <a href="/campaigns" class="hover:text-brand-cyan">Kampagnen</a>
+        <a href="/initiatives" class="hover:text-brand-cyan">Initiativen</a>
+      </nav>
+    </div>
+  </header>
+
+  {% if is_development %}
+  <div class="bg-brand-yellow text-brand-blue text-sm">
+    <div class="max-w-5xl mx-auto flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div class="min-w-0 break-words">
+        <strong>Dev-Modus:</strong>
+        {% if identity %}
+          angemeldet als <code>{{ identity.user_id }}</code>
+          (Scopes: {{ identity.district_scopes|length }})
+        {% else %}
+          nicht angemeldet
+        {% endif %}
+      </div>
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
+        <form method="post" action="/_dev/impersonate" class="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:flex-none">
+          <select name="persona_id" class="min-w-0 max-w-full flex-1 truncate rounded border-brand-blue text-sm sm:max-w-xs">
+            {% for persona in dev_personas %}
+              <option value="{{ persona.id }}">{{ persona.label }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="bg-brand-blue text-white px-2 py-1 rounded font-bold">
+            Anmelden als
+          </button>
+        </form>
+        {% if identity %}
+        <form method="post" action="/_dev/logout">
+          <button type="submit" class="underline">Abmelden</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div id="request-indicator" class="htmx-indicator fixed right-4 top-20 z-50 rounded bg-brand-blue text-white px-4 py-2 shadow-lg" role="status" aria-live="polite">
+    <span class="inline-block animate-spin mr-2" aria-hidden="true">◌</span>Wird geladen …
+  </div>
+
+  <main id="main" class="max-w-5xl mx-auto px-4 py-6" {% block main_attrs %}{% endblock %} hx-boost="true" hx-target="#main" hx-select="#main" hx-swap="outerHTML" hx-indicator="#request-indicator">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% if identity %}
+  <script>
+    // Keep one SSE connection across htmx navigation; read the current main
+    // element each time because boosted navigation replaces it.
+    const dppEvents = new EventSource("/events/canvas");
+    let dppRequestsInFlight = 0;
+
+    function dppMaybeRefresh(payload) {
+      // A write request also publishes an SSE event to this tab. Its own
+      // response will render the updated page, so don't race it with a
+      // second refresh of the still-current URL.
+      if (dppRequestsInFlight > 0) return;
+
+      const main = document.querySelector("#main");
+      const campaignId = main?.dataset.campaignId;
+      const initiativeId = main?.dataset.initiativeId;
+      if (campaignId && payload.campaign_id === campaignId) {
+        htmx.ajax("GET", window.location.pathname, { target: "#main", select: "#main", swap: "outerHTML" });
+      }
+      if (initiativeId && payload.initiative_id === initiativeId) {
+        htmx.ajax("GET", window.location.pathname, { target: "#main", select: "#main", swap: "outerHTML" });
+      }
+    }
+
+    ["campaign.field_updated", "campaign.status_changed", "initiative.coherence_updated"].forEach((evt) => {
+      dppEvents.addEventListener(evt, (e) => dppMaybeRefresh(JSON.parse(e.data)));
+    });
+
+    // Give immediate feedback and prevent duplicate submissions while the
+    // boosted form request is in flight.
+    document.body.addEventListener("htmx:beforeRequest", (event) => {
+      dppRequestsInFlight += 1;
+      const source = event.detail.elt;
+      const form = source.matches("form") ? source : source.closest("form");
+      form?.querySelectorAll('button[type="submit"]').forEach((button) => {
+        button.dataset.dppWasDisabled = button.disabled ? "true" : "false";
+        button.disabled = true;
+      });
+    });
+    document.body.addEventListener("htmx:afterRequest", (event) => {
+      dppRequestsInFlight = Math.max(0, dppRequestsInFlight - 1);
+      const source = event.detail.elt;
+      const form = source.matches("form") ? source : source.closest("form");
+      form?.querySelectorAll('button[type="submit"]').forEach((button) => {
+        button.disabled = button.dataset.dppWasDisabled === "true";
+        delete button.dataset.dppWasDisabled;
+      });
+    });
+  </script>
+  {% endif %}
+</body>
+</html>

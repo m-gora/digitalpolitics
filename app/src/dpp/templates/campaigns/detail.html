@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.thema or "Kampagne" }}{% endblock %}
+{% block main_attrs %}data-campaign-id="{{ campaign.id }}"{% endblock %}
+
+{% macro answer(label, explanation, value) %}
+<div class="border-b border-gray-100 py-3 last:border-0">
+  <h3 class="font-bold text-sm">{{ label }}</h3>
+  <p class="text-xs text-gray-500 mt-0.5">{{ explanation }}</p>
+  <p class="text-sm mt-2 whitespace-pre-wrap">{{ value or "Noch nicht ausgefüllt" }}</p>
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="flex flex-wrap items-start justify-between gap-3 mb-5">
+  <div>
+    <p class="text-sm text-gray-600">{{ campaign.district.name }}</p>
+    <h1 class="text-2xl font-black text-brand-blue">{{ campaign.thema or "Neue Kampagne" }}</h1>
+  </div>
+  <span class="text-xs font-bold uppercase px-2 py-1 rounded bg-gray-200 h-fit">{{ campaign.status.value }}</span>
+</div>
+
+{% if initiatives %}
+<div class="mb-4 text-sm">
+  <span class="font-bold">Initiativen:</span>
+  {% for i in initiatives %}
+    <a href="/initiatives/{{ i.id }}" class="text-brand-blue underline">{{ i.name }}</a>{{ ", " if not loop.last }}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if campaign.forked_from_id %}
+<p class="text-xs text-gray-500 mb-4">Abgeleitet (Fork) von einer anderen Kampagne.</p>
+{% endif %}
+
+{% if can_write and campaign.status.value == "draft" %}
+<div class="mb-5">
+  <a href="/campaigns/{{ campaign.id }}/wizard/{{ wizard_step }}" class="inline-flex items-center gap-2 bg-brand-blue text-white font-bold px-4 py-2 rounded hover:bg-brand-cyan">
+    Canvas weiter ausfüllen oder bearbeiten <span aria-hidden="true">→</span>
+  </a>
+</div>
+{% endif %}
+
+<section class="bg-white rounded shadow p-5 mb-4">
+  <h2 class="text-lg font-black text-brand-blue mb-2">Zieldefinition</h2>
+  {{ answer("Thema", "Worum geht es?", campaign.thema) }}
+  {{ answer("Ziel", "Was ist das Ziel (politisch und kommunikativ)?", campaign.ziel) }}
+</section>
+
+<section class="bg-white rounded shadow p-5 mb-4">
+  <h2 class="text-lg font-black text-brand-blue mb-2">Zielgruppen &amp; Kanäle</h2>
+  {{ answer("Zielgruppen", "Gibt es spezielle Zielgruppen?", campaign.zielgruppen) }}
+  {{ answer("Kanäle", "Welche Zulieferer brauchen wir? Wo erreichen wir die Zielgruppe?", campaign.kanaele) }}
+  {{ answer("Momentum", "Welche Multiplikatoren haben wir in unserem Umfeld? Welche Stakeholder und Partner können wir aktivieren?", campaign.momentum) }}
+  {{ answer("Motiv", "Warum sollte jemand mitmachen?", campaign.motiv) }}
+</section>
+
+<section class="bg-white rounded shadow p-5 mb-5">
+  <h2 class="text-lg font-black text-brand-blue mb-2">Material, Organisation &amp; Storytelling</h2>
+  {{ answer("Service", "Was sollte man den Aktivisten zur Verfügung stellen?", campaign.service) }}
+  {{ answer("Data Harvest", "Welche Daten unserer Zielgruppe wären besonders nützlich für eine nutzenstiftende Kommunikation? Was passiert im Anschluss mit diesen Daten?", campaign.data_harvest) }}
+  {{ answer("Tools", "Welche Tools könnten nützlich sein? (Apps, Petitionstools, etc.)", campaign.tools) }}
+  {{ answer("Phasen & Flow", "Wie startet die Aktion um erfolgreich Aufmerksamkeit zu erzeugen? Wie halten wir die Spannung? Wann gibt es Anlässe die wir nutzen können? Wie endet die Aktion?", campaign.phasen_flow) }}
+  {{ answer("Storytelling", "Gibt es eine spannende Perspektive, besondere Personengruppen, etc?", campaign.storytelling) }}
+</section>
+
+{% if can_write and allowed_transitions %}
+<section class="bg-white rounded shadow p-4 mb-4">
+  <h2 class="font-bold text-brand-blue mb-2">Status ändern</h2>
+  <div class="flex flex-wrap gap-2">
+    {% for status in allowed_transitions %}
+    <form method="post" action="/campaigns/{{ campaign.id }}/transition" hx-indicator="#request-indicator">
+      <input type="hidden" name="to_status" value="{{ status }}" />
+      <button type="submit" class="bg-gray-200 hover:bg-brand-cyan hover:text-white font-bold px-3 py-2 rounded text-sm">
+        &rarr; {{ status }}
+      </button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if campaign.is_closed %}
+<a href="/campaigns/{{ campaign.id }}/retrospective" class="inline-block bg-brand-yellow text-brand-blue font-bold px-3 py-2 rounded mb-4">Retrospektive ansehen</a>
+{% endif %}
+
+{% if can_write %}
+<section class="bg-white rounded shadow p-4">
+  <h2 class="font-bold text-brand-blue mb-2">Als Vorlage kopieren (Fork)</h2>
+  <form method="post" action="/campaigns/{{ campaign.id }}/fork" class="flex gap-2 items-end flex-wrap" hx-indicator="#request-indicator">
+    <div>
+      <label for="target_district_id" class="block text-xs font-bold text-gray-600">Ziel-Gliederung</label>
+      <select id="target_district_id" name="target_district_id" class="border rounded px-2 py-2">
+        {% for d in districts %}
+          <option value="{{ d.id }}" {% if not identity.has_write_access(d.id) %}disabled{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="bg-gray-200 font-bold px-3 py-2 rounded">Kopieren</button>
+  </form>
+  <p class="text-xs text-gray-500 mt-2">Kopiert nur die Canvas-Feldwerte (canv-03). Initiative, Hierarchie und gesammelte Daten werden nicht übernommen.</p>
+</section>
+{% endif %}
+{% endblock %}

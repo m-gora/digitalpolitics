@@ -1,0 +1,22 @@
+"""The campaign module's SSE channel and event names. See arch-03/canv-01..05.
+
+Uses the generic pub-sub mechanism from dpp.sse. If a future module needs
+SSE too, it gets its own Channel instance here (arch-03: "SSE channels are
+scoped by modules").
+"""
+
+from dpp.sse import Channel
+
+canvas_channel = Channel()
+
+
+async def publish_field_updated(campaign_id: str, field_name: str) -> None:
+    await canvas_channel.publish("campaign.field_updated", {"campaign_id": campaign_id, "field": field_name})
+
+
+async def publish_status_changed(campaign_id: str, status: str) -> None:
+    await canvas_channel.publish("campaign.status_changed", {"campaign_id": campaign_id, "status": status})
+
+
+async def publish_coherence_updated(initiative_id: str, score: float | None) -> None:
+    await canvas_channel.publish("initiative.coherence_updated", {"initiative_id": initiative_id, "score": score})
