@@ -21,3 +21,7 @@ node_modules/
 # Tailwind standalone CLI binary (platform-specific, not committed)
 bin/
 
+# tools
+.pytest_cache/
+.ruff_cache/
+
