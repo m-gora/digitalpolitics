@@ -71,16 +71,24 @@ async def test_full_lifecycle_and_retro_auto_creation(client, db_session):
 
     detail = await client.get(f"/campaigns/{campaign_id}", headers=headers)
     assert "Entwurf" in detail.text
-    assert "&rarr; Überprüfung" in detail.text
-    assert "&rarr; review" not in detail.text
+    assert "Prüfen" in detail.text
+    assert "Überprüfung</button>" not in detail.text
 
     # No retro yet
     resp = await client.get(f"/campaigns/{campaign_id}/retrospective", headers=headers)
     assert "Noch keine Retrospektive" in resp.text
 
-    for to_status in ("review", "running", "finished"):
+    expected_actions = {
+        "review": ("Entwerfen", "Starten"),
+        "running": ("Abschließen", "Abbrechen"),
+        "finished": ("Archivieren",),
+    }
+    for to_status, actions in expected_actions.items():
         resp = await client.post(f"/campaigns/{campaign_id}/transition", data={"to_status": to_status}, headers=headers)
         assert resp.status_code == 303, to_status
+        detail = await client.get(f"/campaigns/{campaign_id}", headers=headers)
+        for action in actions:
+            assert action in detail.text
 
     resp = await client.get(f"/campaigns/{campaign_id}/retrospective", headers=headers)
     assert "Zielerreichung" in resp.text

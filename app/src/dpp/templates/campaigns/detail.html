@@ -67,41 +67,63 @@
   {{ answer("Storytelling", "Gibt es eine spannende Perspektive, besondere Personengruppen, etc?", campaign.storytelling) }}
 </section>
 
-{% if can_write and allowed_transitions %}
-<section class="bg-white rounded shadow p-4 mb-4">
-  <h2 class="font-bold text-brand-blue mb-2">Status ändern</h2>
-  <div class="flex flex-wrap gap-2">
+{% if (can_write and allowed_transitions) or campaign.is_closed %}
+<div class="mb-4 flex flex-wrap items-center gap-2">
+  {% if can_write and allowed_transitions %}
+  {% set transition_labels = {
+    "draft": "Entwerfen",
+    "review": "Prüfen",
+    "running": "Starten",
+    "finished": "Abschließen",
+    "aborted": "Abbrechen",
+    "archived": "Archivieren"
+  } %}
     {% for status in allowed_transitions %}
     <form method="post" action="/campaigns/{{ campaign.id }}/transition" hx-indicator="#request-indicator">
       <input type="hidden" name="to_status" value="{{ status }}" />
-      <button type="submit" class="bg-gray-200 hover:bg-brand-cyan hover:text-white font-bold px-3 py-2 rounded text-sm">
-        &rarr; {{ status.label }}
+      <button type="submit" class="rounded bg-gray-200 px-3 py-2 text-sm font-bold hover:bg-brand-cyan hover:text-white">
+        {{ transition_labels[status.value] }}
       </button>
     </form>
     {% endfor %}
-  </div>
-</section>
-{% endif %}
+  {% endif %}
 
-{% if campaign.is_closed %}
-<a href="/campaigns/{{ campaign.id }}/retrospective" class="inline-block bg-brand-yellow text-brand-blue font-bold px-3 py-2 rounded mb-4">Retrospektive ansehen</a>
+  {% if campaign.is_closed %}
+  <a href="/campaigns/{{ campaign.id }}/retrospective" class="inline-flex rounded bg-brand-yellow px-3 py-2 text-sm font-bold text-brand-blue">Retrospektive ansehen</a>
+  {% endif %}
+
+  {% if can_write %}
+  <button type="button" data-open-dialog="campaign-template-dialog-{{ campaign.id }}" aria-haspopup="dialog" class="inline-flex rounded bg-gray-200 px-3 py-2 text-sm font-bold text-brand-blue hover:bg-brand-cyan hover:text-white">Als Vorlage verwenden</button>
+  {% endif %}
+</div>
 {% endif %}
 
 {% if can_write %}
-<section class="bg-white rounded shadow p-4">
-  <h2 class="font-bold text-brand-blue mb-2">Als Vorlage kopieren (Fork)</h2>
-  <form method="post" action="/campaigns/{{ campaign.id }}/fork" class="flex gap-2 items-end flex-wrap" hx-indicator="#request-indicator">
-    <div>
-      <label for="target_district_id" class="block text-xs font-bold text-gray-600">Ziel-Gliederung</label>
-      <select id="target_district_id" name="target_district_id" class="border rounded px-2 py-2">
+<dialog id="campaign-template-dialog-{{ campaign.id }}" aria-labelledby="campaign-template-title-{{ campaign.id }}" class="district-editor-dialog w-[calc(100%-2rem)] max-w-lg rounded-xl border-0 p-0 shadow-xl backdrop:bg-black/50">
+  <div class="p-5 sm:p-6">
+    <div class="mb-5 flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h2 id="campaign-template-title-{{ campaign.id }}" class="text-xl font-black text-brand-blue">Als Vorlage verwenden</h2>
+        <p class="mt-1 text-sm text-gray-600">Wähle die Ziel-Gliederung für die neue Kampagne.</p>
+      </div>
+      <form method="dialog" hx-boost="false">
+        <button type="submit" aria-label="Dialog schließen" class="rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100">×</button>
+      </form>
+    </div>
+
+    <form method="post" action="/campaigns/{{ campaign.id }}/fork" class="space-y-4" hx-indicator="#request-indicator">
+      <div>
+        <label for="target_district_id-{{ campaign.id }}" class="mb-1 block text-sm font-bold text-gray-700">Ziel-Gliederung</label>
+        <select id="target_district_id-{{ campaign.id }}" name="target_district_id" required class="w-full rounded border border-gray-300 px-3 py-2">
         {% for d in districts %}
           <option value="{{ d.id }}" {% if not identity.has_write_access(d.id) %}disabled{% endif %}>{{ d.name }}</option>
         {% endfor %}
-      </select>
-    </div>
-    <button type="submit" class="bg-gray-200 font-bold px-3 py-2 rounded">Kopieren</button>
-  </form>
-  <p class="text-xs text-gray-500 mt-2">Kopiert nur die Canvas-Feldwerte (canv-03). Initiative, Hierarchie und gesammelte Daten werden nicht übernommen.</p>
-</section>
+        </select>
+      </div>
+      <p class="text-xs text-gray-500">Es werden nur die Canvas-Feldwerte kopiert. Initiative, Hierarchie und gesammelte Daten werden nicht übernommen.</p>
+      <button type="submit" class="rounded bg-brand-blue px-4 py-2 font-bold text-white hover:bg-brand-cyan">Vorlage verwenden</button>
+    </form>
+  </div>
+</dialog>
 {% endif %}
 {% endblock %}

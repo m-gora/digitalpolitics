@@ -10,6 +10,30 @@
   </a>
 </div>
 
+<form method="get" action="/campaigns" class="mb-5 flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-end">
+  <div class="min-w-0 flex-1">
+    <label for="campaign-search" class="mb-1 block text-sm font-bold text-gray-700">Kampagnen durchsuchen</label>
+    <input
+      id="campaign-search"
+      type="search"
+      name="q"
+      value="{{ search_query }}"
+      placeholder="Thema, Ziel, Zusammenfassung …"
+      class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-brand-cyan focus:outline-none focus:ring-2 focus:ring-brand-cyan/30"
+    />
+  </div>
+  <div class="sm:w-56">
+    <label for="campaign-status" class="mb-1 block text-sm font-bold text-gray-700">Status</label>
+    <select id="campaign-status" name="status" class="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm focus:border-brand-cyan focus:outline-none focus:ring-2 focus:ring-brand-cyan/30">
+      <option value="all" {% if selected_status == "all" %}selected{% endif %}>Alle Status</option>
+      {% for status in status_choices %}
+      <option value="{{ status.value }}" {% if selected_status == status.value %}selected{% endif %}>{{ status.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="rounded bg-brand-blue px-4 py-2 text-sm font-bold text-white hover:bg-brand-cyan focus:outline-none focus:ring-2 focus:ring-brand-cyan">Suchen & filtern</button>
+</form>
+
 <section aria-label="Kampagnenliste" class="grid gap-3">
   {% for c in campaigns %}
   <a href="/campaigns/{{ c.id }}" class="group block min-w-0 rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:border-brand-cyan hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-cyan sm:flex sm:items-center sm:gap-4">
@@ -27,7 +51,11 @@
   </a>
   {% else %}
   <div class="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-gray-500">
+    {% if has_campaigns %}
+    Keine Kampagnen entsprechen deiner Suche und Statusauswahl.
+    {% else %}
     Noch keine Kampagnen angelegt.
+    {% endif %}
   </div>
   {% endfor %}
 </section>

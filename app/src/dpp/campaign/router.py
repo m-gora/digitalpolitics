@@ -1,10 +1,18 @@
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+)
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import exists, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import contains_eager, selectinload
 from sse_starlette.sse import EventSourceResponse
 from starlette import status
 
@@ -208,17 +216,59 @@ async def _get_campaign_or_404(session: AsyncSession, campaign_id: uuid.UUID) ->
 @campaigns_router.get("")
 async def list_campaigns(
     request: Request,
+    q: str = "",
+    status_filter: str = Query(default="running", alias="status"),
     session: AsyncSession = Depends(get_session),
     identity: Identity = Depends(get_identity),
 ):
-    result = await session.execute(
-        select(Campaign).options(selectinload(Campaign.district)).order_by(Campaign.created_at.desc())
+    search_query = q.strip()
+    if status_filter != "all":
+        try:
+            campaign_status = CampaignStatus(status_filter)
+        except ValueError as exc:
+            valid_statuses = ", ".join(status.value for status in CampaignStatus)
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid status. Choose one of: {valid_statuses}, all",
+            ) from exc
+    else:
+        campaign_status = None
+
+    query = (
+        select(Campaign)
+        .join(Campaign.district)
+        .options(contains_eager(Campaign.district))
+        .order_by(Campaign.created_at.desc())
     )
+    if campaign_status is not None:
+        query = query.where(Campaign.status == campaign_status)
+    if search_query:
+        search_config = literal_column("'german'::regconfig")
+        tsquery = func.plainto_tsquery(search_config, search_query)
+        district_search_vector = func.to_tsvector(search_config, District.name)
+        query = query.where(
+            or_(
+                Campaign.search_vector.op("@@")(tsquery),
+                district_search_vector.op("@@")(tsquery),
+            )
+        )
+
+    result = await session.execute(query)
     campaigns = list(result.scalars().all())
+    has_campaigns = bool(campaigns)
+    if not has_campaigns:
+        has_campaigns = bool(await session.scalar(select(exists().select_from(Campaign))))
     return templates.TemplateResponse(
         request,
         "campaigns/list.html",
-        {"campaigns": campaigns, "identity": identity},
+        {
+            "campaigns": campaigns,
+            "identity": identity,
+            "search_query": search_query,
+            "selected_status": status_filter,
+            "status_choices": list(CampaignStatus),
+            "has_campaigns": has_campaigns,
+        },
     )
 
 

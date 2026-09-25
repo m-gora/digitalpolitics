@@ -18,6 +18,12 @@ async def test_fork_copies_fields_only(client, db_session):
         headers=headers,
     )
 
+    detail = await client.get(f"/campaigns/{source_id}", headers=headers)
+    assert f'data-open-dialog="campaign-template-dialog-{source_id}"' in detail.text
+    assert f'<dialog id="campaign-template-dialog-{source_id}"' in detail.text
+    assert "Ziel-Gliederung" in detail.text
+    assert "OV Kreuzberg" in detail.text
+
     resp = await client.post(
         f"/campaigns/{source_id}/fork",
         data={"target_district_id": str(kreuzberg.id)},

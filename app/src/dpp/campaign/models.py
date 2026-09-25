@@ -4,16 +4,18 @@ from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    Computed,
     DateTime,
     Enum,
     Float,
     ForeignKey,
+    Index,
     String,
     Text,
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from dpp.db import Base
@@ -88,6 +90,7 @@ class Campaign(Base):
     """A campaign canvas instance. See spec canv-01/canv-02/canv-05."""
 
     __tablename__ = "campaigns"
+    __table_args__ = (Index("ix_campaigns_search_vector", "search_vector", postgresql_using="gin"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     district_id: Mapped[uuid.UUID] = mapped_column(
@@ -123,6 +126,21 @@ class Campaign(Base):
     narrative_embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
     ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_summary_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('german'::regconfig, "
+            "coalesce(thema, '') || ' ' || coalesce(ziel, '') || ' ' || "
+            "coalesce(zielgruppen, '') || ' ' || coalesce(kanaele, '') || ' ' || "
+            "coalesce(momentum, '') || ' ' || coalesce(motiv, '') || ' ' || "
+            "coalesce(service, '') || ' ' || coalesce(data_harvest, '') || ' ' || "
+            "coalesce(tools, '') || ' ' || coalesce(phasen_flow, '') || ' ' || "
+            "coalesce(storytelling, '') || ' ' || coalesce(ai_summary, ''))",
+            persisted=True,
+        ),
+        nullable=False,
+        deferred=True,
+    )
 
     forked_from_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True

@@ -19,7 +19,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 settings = get_settings()
 
-app = FastAPI(title="Digital Politics Platform — Campaign Canvas")
+app = FastAPI(title="FDP Digital Politics Platform")
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

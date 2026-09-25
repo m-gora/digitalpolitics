@@ -137,7 +137,7 @@ async def test_completed_canvas_edits_regenerate_summary_and_list_displays_it(
     assert response.status_code == 303
     assert len(provider.prompts) == 2
 
-    list_response = await client.get("/campaigns", headers=headers)
+    list_response = await client.get("/campaigns?status=all", headers=headers)
     assert list_response.status_code == 200
     assert "Kurzzusammenfassung 2" in list_response.text
     assert 'data-campaign-list="true"' in list_response.text

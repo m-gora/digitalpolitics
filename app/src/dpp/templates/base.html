@@ -97,7 +97,7 @@
       if (!dppPendingCampaignListRefresh || dppRequestsInFlight > 0) return;
       dppPendingCampaignListRefresh = false;
       if (document.querySelector("#main")?.dataset.campaignList === "true") {
-        htmx.ajax("GET", window.location.pathname, { target: "#main", select: "#main", swap: "outerHTML" });
+        htmx.ajax("GET", window.location.pathname + window.location.search, { target: "#main", select: "#main", swap: "outerHTML" });
       }
     }
 
@@ -108,7 +108,7 @@
           if (dppRequestsInFlight > 0) {
             dppPendingCampaignListRefresh = true;
           } else {
-            htmx.ajax("GET", window.location.pathname, { target: "#main", select: "#main", swap: "outerHTML" });
+            htmx.ajax("GET", window.location.pathname + window.location.search, { target: "#main", select: "#main", swap: "outerHTML" });
           }
         }
         return;
