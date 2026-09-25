@@ -36,8 +36,8 @@ async def seed() -> None:
         session.add_all([lv_berlin, bv_fk, bv_mitte, ov_kreuzberg, ov_friedrichshain, ov_wedding])
         await session.flush()
 
-        # Two campaigns clustered into a district-level initiative (canv-01: v1
-        # initiatives cluster campaigns within a single hierarchy node).
+        # Two campaigns clustered into a district-anchored initiative (canv-01:
+        # membership may include campaigns from the anchor and descendants).
         mietendeckel = Campaign(
             district_id=bv_fk.id,
             status=CampaignStatus.DRAFT,

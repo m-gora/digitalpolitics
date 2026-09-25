@@ -20,6 +20,7 @@ from dpp.campaign.models import (
     Initiative,
     InitiativeCampaign,
 )
+from dpp.campaign.summary import update_campaign_summary
 from dpp.db import async_session_factory, get_session
 from dpp.templating import templates
 
@@ -48,11 +49,100 @@ async def list_districts(
 ):
     districts = await hierarchy.get_tree(session)
     forest = _build_forest(districts)
+    district_choices = _flatten_forest(forest)
+    error_messages = {
+        "empty_name": "Bitte gib einen Namen für die Gliederung ein.",
+        "has_children": "Untergliederungen zuerst einzeln löschen.",
+        "in_use": "Diese Gliederung ist noch mit Kampagnen oder Initiativen verknüpft und kann nicht gelöscht werden.",
+        "parent_not_found": "Die übergeordnete Gliederung wurde nicht gefunden.",
+    }
     return templates.TemplateResponse(
         request,
         "districts/list.html",
-        {"forest": forest, "identity": identity},
+        {
+            "forest": forest,
+            "district_choices": district_choices,
+            "identity": identity,
+            "error_message": error_messages.get(request.query_params.get("error", "")),
+        },
     )
+
+
+def _flatten_forest(nodes: list[dict], depth: int = 0) -> list[dict]:
+    flattened = []
+    for node in nodes:
+        flattened.append({"district": node["district"], "depth": depth})
+        flattened.extend(_flatten_forest(node["children"], depth + 1))
+    return flattened
+
+
+@districts_router.post("")
+async def create_district(
+    name: str = Form(...),
+    parent_id: str = Form(""),
+    session: AsyncSession = Depends(get_session),
+    identity: Identity = Depends(get_identity),
+):
+    name = name.strip()
+    if not name:
+        return _redirect("/districts?error=empty_name")
+
+    parent_uuid = None
+    if parent_id:
+        try:
+            parent_uuid = uuid.UUID(parent_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid parent district ID.") from exc
+        ensure_write_access(identity, parent_uuid)
+
+    try:
+        await hierarchy.create_district(session, name, parent_uuid)
+    except hierarchy.DistrictNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await session.commit()
+    return _redirect("/districts")
+
+
+@districts_router.post("/{district_id}/rename")
+async def rename_district(
+    district_id: uuid.UUID,
+    name: str = Form(...),
+    session: AsyncSession = Depends(get_session),
+    identity: Identity = Depends(get_identity),
+):
+    district = await session.get(District, district_id)
+    if district is None:
+        raise HTTPException(status_code=404, detail="District not found.")
+    ensure_write_access(identity, district.id)
+    name = name.strip()
+    if not name:
+        return _redirect("/districts?error=empty_name")
+
+    await hierarchy.rename_district(session, district, name)
+    await session.commit()
+    return _redirect("/districts")
+
+
+@districts_router.post("/{district_id}/delete")
+async def delete_district(
+    district_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    identity: Identity = Depends(get_identity),
+):
+    district = await session.get(District, district_id)
+    if district is None:
+        raise HTTPException(status_code=404, detail="District not found.")
+    ensure_write_access(identity, district.id)
+
+    try:
+        await hierarchy.delete_district(session, district)
+    except hierarchy.DistrictHasChildrenError:
+        return _redirect("/districts?error=has_children")
+    except hierarchy.DistrictInUseError:
+        return _redirect("/districts?error=in_use")
+
+    await session.commit()
+    return _redirect("/districts")
 
 
 # --- Campaigns -----------------------------------------------------------
@@ -154,7 +244,7 @@ async def create_campaign_from_wizard(
     identity: Identity = Depends(get_identity),
 ):
     ensure_write_access(identity, district_id)
-    campaign = lifecycle.create_campaign(district_id)
+    campaign = lifecycle.create_campaign(district_id, created_by=identity.user_id)
     session.add(campaign)
     await session.commit()
     return _redirect(f"/campaigns/{campaign.id}/wizard/zieldefinition")
@@ -167,7 +257,7 @@ async def create_campaign(
     identity: Identity = Depends(get_identity),
 ):
     ensure_write_access(identity, district_id)
-    campaign = lifecycle.create_campaign(district_id)
+    campaign = lifecycle.create_campaign(district_id, created_by=identity.user_id)
     session.add(campaign)
     await session.commit()
     return _redirect(f"/campaigns/{campaign.id}")
@@ -186,7 +276,8 @@ async def campaign_detail(
     districts_result = await session.execute(select(District).order_by(District.name))
     districts = list(districts_result.scalars().all())
     allowed_transitions = sorted(
-        (s.value for s in lifecycle.ALLOWED_TRANSITIONS.get(campaign.status, set())),
+        lifecycle.ALLOWED_TRANSITIONS.get(campaign.status, set()),
+        key=lambda campaign_status: campaign_status.value,
     )
     wizard_step = (
         "zieldefinition"
@@ -291,8 +382,14 @@ async def save_campaign_wizard_step(
     await session.commit()
     for field in changed:
         await events.publish_field_updated(str(campaign.id), field)
-    if changed & set(NARRATIVE_FIELDS):
+    if changed and (
+        changed & set(NARRATIVE_FIELDS)
+        or campaign.domain_embedding is None
+        or campaign.narrative_embedding is None
+    ):
         background_tasks.add_task(_recompute_embedding_and_coherence, campaign.id)
+    if changed and campaign.canvas_complete:
+        background_tasks.add_task(_recompute_campaign_summary, campaign.id)
 
     action = str(form.get("action", "next"))
     if action == "back":
@@ -319,18 +416,27 @@ async def save_campaign_wizard_step(
 
 
 async def _recompute_embedding_and_coherence(campaign_id: uuid.UUID) -> None:
-    """Background task: recompute a campaign's narrative embedding, then the
-    coherence score of every initiative it belongs to (canv-01).
+    """Refresh a campaign's embeddings, then its initiatives' similarity scores (canv-01).
     """
     async with async_session_factory() as session:
         campaign = await _get_campaign_or_404(session, campaign_id)
-        changed = await coherence.update_campaign_embedding(campaign)
+        changed = await coherence.update_campaign_embeddings(campaign)
         if changed:
             await session.commit()
         initiatives = await membership.initiatives_for_campaign(session, campaign_id)
         for initiative in initiatives:
             await coherence.recompute_coherence(session, initiative)
         await session.commit()
+
+
+async def _recompute_campaign_summary(campaign_id: uuid.UUID) -> None:
+    """Regenerate the list-view summary after a complete canvas is edited."""
+    async with async_session_factory() as session:
+        campaign = await _get_campaign_or_404(session, campaign_id)
+        updated = await update_campaign_summary(campaign)
+        if updated:
+            await session.commit()
+            await events.publish_summary_updated(str(campaign.id))
 
 
 @campaigns_router.post("/{campaign_id}/fields")
@@ -357,8 +463,14 @@ async def update_fields(
     for field in changed:
         await events.publish_field_updated(str(campaign.id), field)
 
-    if changed & set(NARRATIVE_FIELDS):
+    if changed and (
+        changed & set(NARRATIVE_FIELDS)
+        or campaign.domain_embedding is None
+        or campaign.narrative_embedding is None
+    ):
         background_tasks.add_task(_recompute_embedding_and_coherence, campaign.id)
+    if changed and campaign.canvas_complete:
+        background_tasks.add_task(_recompute_campaign_summary, campaign.id)
 
     return _redirect(f"/campaigns/{campaign.id}")
 
@@ -397,7 +509,7 @@ async def fork(
     source = await _get_campaign_or_404(session, campaign_id)  # read is global, per arch-02
     ensure_write_access(identity, target_district_id)
 
-    forked = lifecycle.fork_campaign(source, target_district_id)
+    forked = lifecycle.fork_campaign(source, target_district_id, created_by=identity.user_id)
     session.add(forked)
     await session.commit()
     return _redirect(f"/campaigns/{forked.id}")
@@ -471,12 +583,20 @@ async def list_initiatives(
 ):
     result = await session.execute(select(Initiative).options(selectinload(Initiative.district)))
     initiatives = list(result.scalars().all())
+    districts_by_initiative = await membership.get_member_districts_by_initiative(
+        session, [initiative.id for initiative in initiatives]
+    )
     districts_result = await session.execute(select(District).order_by(District.name))
     districts = list(districts_result.scalars().all())
     return templates.TemplateResponse(
         request,
         "initiatives/list.html",
-        {"initiatives": initiatives, "districts": districts, "identity": identity},
+        {
+            "initiatives": initiatives,
+            "districts_by_initiative": districts_by_initiative,
+            "districts": districts,
+            "identity": identity,
+        },
     )
 
 
@@ -495,6 +615,38 @@ async def create_initiative(
     return _redirect(f"/initiatives/{initiative.id}")
 
 
+@initiatives_router.post("/{initiative_id}/edit")
+async def edit_initiative(
+    initiative_id: uuid.UUID,
+    name: str = Form(...),
+    description: str = Form(""),
+    session: AsyncSession = Depends(get_session),
+    identity: Identity = Depends(get_identity),
+):
+    initiative = await _get_initiative_or_404(session, initiative_id)
+    ensure_write_access(identity, initiative.district_id)
+    name = name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Initiative name cannot be empty.")
+
+    membership.update_initiative(initiative, name, description.strip() or None)
+    await session.commit()
+    return _redirect(f"/initiatives/{initiative.id}")
+
+
+@initiatives_router.post("/{initiative_id}/delete")
+async def delete_initiative(
+    initiative_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    identity: Identity = Depends(get_identity),
+):
+    initiative = await _get_initiative_or_404(session, initiative_id)
+    ensure_write_access(identity, initiative.district_id)
+    await membership.delete_initiative(session, initiative)
+    await session.commit()
+    return _redirect("/initiatives")
+
+
 @initiatives_router.get("/{initiative_id}")
 async def initiative_detail(
     initiative_id: uuid.UUID,
@@ -505,10 +657,36 @@ async def initiative_detail(
     initiative = await _get_initiative_or_404(session, initiative_id)
     members = await membership.get_member_campaigns(session, initiative.id)
 
-    # Campaigns in the same district not yet part of this initiative (v1: same-district only, canv-01).
+    # Campaigns from the anchor district and descendants can join (canv-01).
     member_ids = {m.id for m in members}
-    candidates_result = await session.execute(select(Campaign).where(Campaign.district_id == initiative.district_id))
+    scope = await hierarchy.expand_district_scope(session, initiative.district_id)
+    scope_ids = [uuid.UUID(district_id) for district_id in scope]
+    candidates_result = await session.execute(
+        select(Campaign)
+        .options(selectinload(Campaign.district))
+        .where(Campaign.district_id.in_(scope_ids))
+    )
     candidates = [c for c in candidates_result.scalars().all() if c.id not in member_ids]
+    domain_similarity_scores = coherence.campaign_similarity_to_peers(members, "domain")
+    narrative_similarity_scores = coherence.campaign_similarity_to_peers(members, "narrative")
+    campaign_rows = [
+        (
+            campaign,
+            domain_similarity_scores.get(campaign.id),
+            narrative_similarity_scores.get(campaign.id),
+        )
+        for campaign in members
+    ]
+    domain_outlier_candidate_id = (
+        min(domain_similarity_scores.items(), key=lambda item: item[1])[0]
+        if len(domain_similarity_scores) >= 3
+        else None
+    )
+    narrative_outlier_candidate_id = (
+        min(narrative_similarity_scores.items(), key=lambda item: item[1])[0]
+        if len(narrative_similarity_scores) >= 3
+        else None
+    )
 
     can_write = identity.has_write_access(initiative.district_id)
     return templates.TemplateResponse(
@@ -517,6 +695,11 @@ async def initiative_detail(
         {
             "initiative": initiative,
             "members": members,
+            "campaign_rows": campaign_rows,
+            "domain_outlier_candidate_id": domain_outlier_candidate_id,
+            "narrative_outlier_candidate_id": narrative_outlier_candidate_id,
+            "domain_embedded_campaign_count": len(domain_similarity_scores),
+            "narrative_embedded_campaign_count": len(narrative_similarity_scores),
             "candidates": candidates,
             "can_write": can_write,
             "identity": identity,

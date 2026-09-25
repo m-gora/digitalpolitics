@@ -2,16 +2,55 @@
 {% block title %}Gliederungen{% endblock %}
 
 {% macro render_node(node, identity) %}
-<li class="mt-1">
-  <div class="flex items-center gap-2">
-    <span class="font-bold">{{ node.district.name }}</span>
+<li class="py-2">
+  <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-gray-200 bg-white p-3">
+    <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+      <span class="break-words font-bold text-brand-blue">{{ node.district.name }}</span>
+      {% if identity.has_write_access(node.district.id) %}
+        <span class="rounded bg-brand-cyan px-2 py-0.5 text-xs font-bold text-white">Schreibzugriff</span>
+      {% endif %}
+      <a href="/campaigns?district_id={{ node.district.id }}" class="text-xs font-bold text-brand-blue underline">Kampagnen</a>
+    </div>
+
     {% if identity.has_write_access(node.district.id) %}
-      <span class="text-xs bg-brand-cyan text-white px-2 py-0.5 rounded">Schreibzugriff</span>
+    <button type="button" data-open-dialog="district-editor-{{ node.district.id }}" aria-haspopup="dialog" class="rounded bg-gray-100 px-3 py-1 text-sm font-bold text-brand-blue hover:bg-brand-cyan hover:text-white">Bearbeiten</button>
+
+    <dialog id="district-editor-{{ node.district.id }}" aria-labelledby="district-editor-title-{{ node.district.id }}" class="district-editor-dialog w-[calc(100%-2rem)] max-w-lg rounded-xl border-0 p-0 shadow-xl backdrop:bg-black/50">
+      <div class="p-5 sm:p-6">
+        <div class="mb-5 flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h2 id="district-editor-title-{{ node.district.id }}" class="text-xl font-black text-brand-blue">Gliederung bearbeiten</h2>
+            <p class="mt-1 break-words text-sm text-gray-600">{{ node.district.name }}</p>
+          </div>
+          <form method="dialog" hx-boost="false">
+            <button type="submit" aria-label="Dialog schließen" class="rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100">×</button>
+          </form>
+        </div>
+
+        <form method="post" action="/districts/{{ node.district.id }}/rename" class="space-y-3">
+          <label for="district-name-{{ node.district.id }}" class="block text-sm font-bold text-gray-700">Name</label>
+          <div class="flex flex-wrap gap-2">
+            <input id="district-name-{{ node.district.id }}" name="name" value="{{ node.district.name }}" required class="min-w-0 flex-1 rounded border border-gray-300 px-3 py-2" />
+            <button type="submit" class="rounded bg-brand-blue px-4 py-2 font-bold text-white hover:bg-brand-cyan">Speichern</button>
+          </div>
+        </form>
+
+        <div class="mt-6 border-t border-gray-200 pt-4">
+          {% if node.children %}
+            <p class="text-sm text-gray-500">Untergliederungen zuerst einzeln löschen.</p>
+          {% else %}
+            <form method="post" action="/districts/{{ node.district.id }}/delete" onsubmit="return confirm('Gliederung {{ node.district.name }} wirklich löschen?')">
+              <button type="submit" class="rounded px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Gliederung löschen</button>
+              <p class="mt-1 text-xs text-gray-500">Nur möglich, wenn keine Kampagnen oder Initiativen mehr zugeordnet sind.</p>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </dialog>
     {% endif %}
-    <a href="/campaigns?district_id={{ node.district.id }}" class="text-xs underline text-brand-blue">Kampagnen</a>
   </div>
   {% if node.children %}
-  <ul class="ml-6 border-l border-gray-300 pl-4">
+  <ul class="ml-3 mt-2 border-l-2 border-gray-200 pl-3 sm:ml-6 sm:pl-4">
     {% for child in node.children %}
       {{ render_node(child, identity) }}
     {% endfor %}
@@ -21,13 +60,41 @@
 {% endmacro %}
 
 {% block content %}
-<h1 class="text-2xl font-black text-brand-blue mb-4">Gliederungshierarchie</h1>
-<p class="text-sm text-gray-600 mb-4">
-  Arbiträre Baumtiefe (siehe canv-01) — LV/BV/OV ist nur ein Beispiel, kein festes Schema.
-</p>
-<ul>
+<h1 class="text-2xl font-black text-brand-blue mb-2">Gliederungshierarchie</h1>
+<p class="text-sm text-gray-600 mb-5">Arbiträre Baumtiefe (siehe canv-01) — LV/BV/OV ist nur ein Beispiel, kein festes Schema.</p>
+
+{% if error_message %}
+<div role="alert" class="mb-5 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{{ error_message }}</div>
+{% endif %}
+
+<section class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+  <h2 class="mb-3 font-bold text-brand-blue">Neue Gliederung anlegen</h2>
+  <form method="post" action="/districts" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+    <div class="min-w-0 flex-1">
+      <label for="new-district-name" class="mb-1 block text-sm font-bold">Name</label>
+      <input id="new-district-name" name="name" required class="w-full rounded border border-gray-300 px-3 py-2" placeholder="z. B. OV Kreuzberg" />
+    </div>
+    <div class="min-w-0 flex-1">
+      <label for="new-district-parent" class="mb-1 block text-sm font-bold">Übergeordnete Gliederung</label>
+      <select id="new-district-parent" name="parent_id" class="w-full rounded border border-gray-300 px-3 py-2">
+        <option value="">Keine — neue Wurzelgliederung</option>
+        {% for choice in district_choices %}
+          <option value="{{ choice.district.id }}" {% if not identity.has_write_access(choice.district.id) %}disabled{% endif %}>
+            {{ "　" * choice.depth }}{{ choice.district.name }}{% if not identity.has_write_access(choice.district.id) %} (kein Schreibzugriff){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="rounded bg-brand-blue px-4 py-2 font-bold text-white hover:bg-brand-cyan">Gliederung anlegen</button>
+  </form>
+  <p class="mt-2 text-xs text-gray-500">Neue Wurzelgliederungen können von jedem angemeldeten Nutzer angelegt werden. Für eine Untergliederung brauchst du Schreibzugriff auf die übergeordnete Gliederung.</p>
+</section>
+
+<ul class="space-y-2">
   {% for node in forest %}
     {{ render_node(node, identity) }}
+  {% else %}
+    <li class="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-gray-500">Noch keine Gliederungen angelegt.</li>
   {% endfor %}
 </ul>
 {% endblock %}

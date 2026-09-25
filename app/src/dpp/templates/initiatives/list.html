@@ -4,15 +4,14 @@
 {% block content %}
 <h1 class="text-2xl font-black text-brand-blue mb-4">Initiativen</h1>
 <p class="text-sm text-gray-600 mb-4">
-  Bündelt Kampagnen innerhalb einer Gliederung und schätzt ihre narrative Kohärenz ein (siehe canv-01).
-  Für v1 bewusst auf eine einzelne Gliederung beschränkt.
+  Bündelt Kampagnen aus einer koordinierenden Gliederung und ihren Untergliederungen zu einer gemeinsamen politischen Erzählung (siehe canv-01).
 </p>
 
 <section class="mb-8 bg-white rounded shadow p-4">
   <h2 class="font-bold mb-2">Neue Initiative anlegen</h2>
   <form method="post" action="/initiatives" class="flex gap-2 items-end flex-wrap">
     <div>
-      <label class="block text-xs font-bold text-gray-600">Gliederung</label>
+      <label class="block text-xs font-bold text-gray-600">Koordinierende Gliederung</label>
       <select name="district_id" class="border rounded px-2 py-1">
         {% for d in districts %}
           <option value="{{ d.id }}" {% if not identity.has_write_access(d.id) %}disabled{% endif %}>
@@ -26,26 +25,42 @@
       <input type="text" name="name" required class="border rounded px-2 py-1" />
     </div>
     <div>
-      <label class="block text-xs font-bold text-gray-600">Beschreibung</label>
+      <label class="block text-xs font-bold text-gray-600">Gemeinsame Botschaft / Beschreibung</label>
       <input type="text" name="description" class="border rounded px-2 py-1" />
     </div>
     <button type="submit" class="bg-brand-blue text-white font-bold px-3 py-1 rounded">Anlegen</button>
   </form>
+  <p class="mt-2 text-xs text-gray-500">Kampagnen der ausgewählten Gliederung und aller Untergliederungen können zusammenarbeiten. Du brauchst Schreibzugriff auf die koordinierende Gliederung.</p>
 </section>
 
 <div class="grid gap-3">
   {% for i in initiatives %}
   <a href="/initiatives/{{ i.id }}" class="block bg-white rounded shadow p-4 hover:shadow-md">
     <div class="flex justify-between items-center">
-      <div>
+      <div class="min-w-0 flex-1">
         <div class="font-bold text-brand-blue">{{ i.name }}</div>
-        <div class="text-xs text-gray-500">{{ i.district.name }}</div>
-      </div>
-      <div class="text-sm">
-        {% if i.coherence_score is not none %}
-          Kohärenz: <strong>{{ "%.0f"|format(i.coherence_score * 100) }}%</strong>
+        <div class="mt-1 text-xs text-gray-500">Koordiniert von {{ i.district.name }}</div>
+        {% set member_districts = districts_by_initiative.get(i.id, []) %}
+        {% if member_districts %}
+        <div class="mt-2 flex flex-wrap gap-1.5" aria-label="Beteiligte Gliederungen">
+          {% for district in member_districts %}
+            <span class="rounded-full bg-brand-cyan/10 px-2.5 py-1 text-xs font-bold text-brand-blue">{{ district.name }}</span>
+          {% endfor %}
+        </div>
         {% else %}
-          <span class="text-gray-400">Kohärenz: n/a</span>
+        <p class="mt-2 text-xs text-gray-400">Noch keine Kampagnen zugeordnet</p>
+        {% endif %}
+      </div>
+      <div class="flex shrink-0 flex-nowrap items-center justify-end gap-x-4 text-sm">
+        {% if i.domain_similarity_score is not none %}
+          <span>Domain: <strong>{{ "%.2f"|format(i.domain_similarity_score) }}</strong></span>
+        {% else %}
+          <span class="text-gray-400">Domain: n/a</span>
+        {% endif %}
+        {% if i.narrative_similarity_score is not none %}
+          <span>Narrativ: <strong>{{ "%.2f"|format(i.narrative_similarity_score) }}</strong></span>
+        {% else %}
+          <span class="text-gray-400">Narrativ: n/a</span>
         {% endif %}
       </div>
     </div>

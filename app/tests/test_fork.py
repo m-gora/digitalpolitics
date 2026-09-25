@@ -30,7 +30,7 @@ async def test_fork_copies_fields_only(client, db_session):
     assert "Quellthema" in resp.text
     assert "Quellziel" in resp.text
     assert "OV Kreuzberg" in resp.text  # placed in the new target district
-    assert "draft" in resp.text  # new campaign starts in Draft regardless of source status
+    assert "Entwurf" in resp.text  # new campaign starts in Draft regardless of source status
 
 
 async def test_fork_requires_write_access_to_target_district(client, db_session):

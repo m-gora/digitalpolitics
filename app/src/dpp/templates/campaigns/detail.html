@@ -11,12 +11,16 @@
 {% endmacro %}
 
 {% block content %}
+<a href="/campaigns" class="mb-4 inline-block text-sm font-bold text-brand-blue underline hover:text-brand-cyan">&larr; Zurück zur Kampagnenliste</a>
 <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
   <div>
     <p class="text-sm text-gray-600">{{ campaign.district.name }}</p>
+    {% if campaign.created_by %}
+    <p class="mt-1 break-words text-xs text-gray-500">Erstellt von {{ campaign.created_by }}</p>
+    {% endif %}
     <h1 class="text-2xl font-black text-brand-blue">{{ campaign.thema or "Neue Kampagne" }}</h1>
   </div>
-  <span class="text-xs font-bold uppercase px-2 py-1 rounded bg-gray-200 h-fit">{{ campaign.status.value }}</span>
+  <span class="text-xs font-bold px-2 py-1 rounded bg-gray-200 h-fit">{{ campaign.status.label }}</span>
 </div>
 
 {% if initiatives %}
@@ -71,7 +75,7 @@
     <form method="post" action="/campaigns/{{ campaign.id }}/transition" hx-indicator="#request-indicator">
       <input type="hidden" name="to_status" value="{{ status }}" />
       <button type="submit" class="bg-gray-200 hover:bg-brand-cyan hover:text-white font-bold px-3 py-2 rounded text-sm">
-        &rarr; {{ status }}
+        &rarr; {{ status.label }}
       </button>
     </form>
     {% endfor %}

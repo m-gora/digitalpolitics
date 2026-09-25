@@ -20,13 +20,17 @@ built per `../spec/01-adrs/adr-01.md` (FastAPI + htmx + SSE + Postgres/pgvector/
 ## First-time setup
 
 ```sh
-cp .env.example .env          # fill in OPENAI_API_KEY if you want real coherence scores
+cp .env.example .env          # choose AI_PROVIDER=openai|google and configure its API key for embeddings/summaries
 docker compose up -d db       # Postgres 16 with postgis + pgvector extensions
 uv sync                       # install Python dependencies
 uv run alembic upgrade head   # create the schema
 uv run python -m dpp.seed     # example hierarchy + campaigns (idempotent)
 ./bin/tailwindcss -i src/dpp/static/css/input.css -o src/dpp/static/css/output.css
 ```
+
+After configuring an AI provider, generate missing summaries or regenerate summaries previously
+truncated with ellipses using `uv run python -m dpp.campaign.backfill_summaries`. Add `--force` to
+regenerate summaries for all complete campaigns.
 
 ## Running
 
@@ -69,7 +73,7 @@ uv run pytest
 
 Organized by bounded context rather than by technical layer: `campaign/` is the single
 domain package covering everything in `spec/02-modules/canv-*` (hierarchy, campaign canvas,
-lifecycle, forking, retrospectives, initiatives + coherence score). `auth/` and `sse.py` are
+lifecycle, forking, retrospectives, initiatives + domain/narrative similarity scores). `auth/` and `sse.py` are
 shared infrastructure used by that domain, not domains themselves.
 
 ```
@@ -108,9 +112,14 @@ tests/                                pytest + httpx, real Postgres
 - Full lifecycle: Draft → Review → Running → Finished/Aborted → Archived (canv-05).
 - Template forking (canv-03): copies canvas field answers only.
 - Post-mortem retrospective, auto-created on Finished/Aborted (canv-04).
-- Initiatives scoped to a single district, with an AI-assisted coherence score computed
-  from OpenAI embeddings of the narrative fields (canv-01, adr-04). Without
-  `OPENAI_API_KEY` set, the app still runs — coherence scores just stay "n/a".
+- Initiatives anchored at a Gliederung and able to coordinate campaigns across its
+  descendants, with member-district tags, separate domain/narrative pairwise cosine-similarity
+  scores, and per-dimension peer similarities to surface relative outlier candidates
+  (canv-01, adr-04, adr-05).
+- Completed campaigns get an AI-generated short summary (excluding Data Harvest) displayed
+  in the campaign list (canv-02, adr-04, adr-05). Select one provider for embeddings and text
+  generation with `AI_PROVIDER=openai` or `AI_PROVIDER=google`; configure `OPENAI_API_KEY` or
+  `GOOGLE_API_KEY` accordingly. Without the selected provider's key, the app runs without AI outputs.
 - District-scoped RBAC with hierarchical inheritance via pre-expanded `X-District-Scopes`
   (arch-02, adr-03); read access is global for any authenticated user.
 

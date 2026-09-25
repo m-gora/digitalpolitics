@@ -59,6 +59,17 @@ class CampaignStatus(str, enum.Enum):
     ABORTED = "aborted"
     ARCHIVED = "archived"
 
+    @property
+    def label(self) -> str:
+        return {
+            CampaignStatus.DRAFT: "Entwurf",
+            CampaignStatus.REVIEW: "Überprüfung",
+            CampaignStatus.RUNNING: "Laufend",
+            CampaignStatus.FINISHED: "Abgeschlossen",
+            CampaignStatus.ABORTED: "Abgebrochen",
+            CampaignStatus.ARCHIVED: "Archiviert",
+        }[self]
+
 
 # Valid forward transitions, per canv-05. Review can also send back to Draft.
 ALLOWED_TRANSITIONS: dict[CampaignStatus, set[CampaignStatus]] = {
@@ -87,6 +98,7 @@ class Campaign(Base):
         nullable=False,
         default=CampaignStatus.DRAFT,
     )
+    created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Zieldefinition
     thema: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -105,9 +117,12 @@ class Campaign(Base):
     phasen_flow: Mapped[str | None] = mapped_column(Text, nullable=True)
     storytelling: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Narrative embedding (Thema + Ziel + Storytelling), used for initiative coherence score.
+    # Separate embeddings distinguish political domain from campaign narrative.
     # See adr-04 for the privacy exception this implies.
+    domain_embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
     narrative_embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
+    ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_summary_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     forked_from_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True
@@ -148,6 +163,14 @@ class Campaign(Base):
         return self.goal_complete and self.audience_complete
 
     @property
+    def execution_complete(self) -> bool:
+        return all(getattr(self, field) for field in self.EXECUTION_FIELDS)
+
+    @property
+    def canvas_complete(self) -> bool:
+        return self.goal_complete and self.audience_complete and self.execution_complete
+
+    @property
     def is_closed(self) -> bool:
         return self.status in CLOSED_STATUSES
 
@@ -156,12 +179,11 @@ class Campaign(Base):
 
 
 class Initiative(Base):
-    """Clusters campaigns within a single district and tracks a narrative
-    coherence score across them. See spec canv-01.
+    """Coordinates campaigns from an anchor district and its descendants,
+    and tracks domain and narrative similarity scores across them. See spec canv-01.
 
-    v1 constraint: an initiative's member campaigns must belong to the same
-    district as the initiative itself (cross-district initiatives are out of
-    scope for v1).
+    The anchor district is fixed after creation; cross-branch membership is
+    outside v1 scope.
     """
 
     __tablename__ = "initiatives"
@@ -173,7 +195,8 @@ class Initiative(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    coherence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    domain_similarity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    narrative_similarity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     coherence_computed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

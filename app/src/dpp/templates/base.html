@@ -15,8 +15,9 @@
   <script src="/static/js/htmx.min.js" defer></script>
 </head>
 <body class="font-sans bg-gray-50 text-gray-900" {% block body_attrs %}{% endblock %}>
-  <header class="bg-brand-blue text-white" hx-boost="true" hx-target="#main" hx-select="#main" hx-swap="outerHTML" hx-indicator="#request-indicator">
-    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+  <div id="app-shell" hx-boost="true" hx-target="#app-shell" hx-select="#app-shell" hx-swap="outerHTML" hx-indicator="#request-indicator">
+  <header class="bg-brand-blue text-white">
+    <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
       <a href="/" aria-label="Zur Startseite" class="shrink-0">
         <svg class="h-9 w-auto" viewBox="0 0 178.08 69.73" role="img" aria-labelledby="fdp-nav-logo-title" xmlns="http://www.w3.org/2000/svg">
           <title id="fdp-nav-logo-title">FDP</title>
@@ -25,11 +26,13 @@
           <path fill="#FFE000" d="M150.24,32.49c5.6,0,9.2-2.56,9.2-8.44s-3.7-8.92-9.2-8.92h-12.14v17.36h12.14ZM152.8,1c14.32,0,24.28,7.3,24.28,21.91,0,15.37-7.97,23.24-24.47,23.24h-14.51v22.58h-17.64V1h32.35Z" />
         </svg>
       </a>
-      <nav class="flex gap-4 text-sm font-bold">
+      {% if request.url.path.startswith('/campaigns') or request.url.path.startswith('/districts') or request.url.path.startswith('/initiatives') %}
+      <nav class="flex flex-wrap gap-x-4 gap-y-1 text-sm font-bold">
         <a href="/districts" class="hover:text-brand-cyan">Gliederungen</a>
         <a href="/campaigns" class="hover:text-brand-cyan">Kampagnen</a>
         <a href="/initiatives" class="hover:text-brand-cyan">Initiativen</a>
       </nav>
+      {% endif %}
     </div>
   </header>
 
@@ -46,7 +49,7 @@
         {% endif %}
       </div>
       <div class="flex min-w-0 flex-wrap items-center gap-2">
-        <form method="post" action="/_dev/impersonate" class="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:flex-none">
+        <form method="post" action="/_dev/impersonate" hx-boost="false" class="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:flex-none">
           <select name="persona_id" class="min-w-0 max-w-full flex-1 truncate rounded border-brand-blue text-sm sm:max-w-xs">
             {% for persona in dev_personas %}
               <option value="{{ persona.id }}">{{ persona.label }}</option>
@@ -57,7 +60,7 @@
           </button>
         </form>
         {% if identity %}
-        <form method="post" action="/_dev/logout">
+        <form method="post" action="/_dev/logout" hx-boost="false">
           <button type="submit" class="underline">Abmelden</button>
         </form>
         {% endif %}
@@ -70,24 +73,52 @@
     <span class="inline-block animate-spin mr-2" aria-hidden="true">◌</span>Wird geladen …
   </div>
 
-  <main id="main" class="max-w-5xl mx-auto px-4 py-6" {% block main_attrs %}{% endblock %} hx-boost="true" hx-target="#main" hx-select="#main" hx-swap="outerHTML" hx-indicator="#request-indicator">
+  <main id="main" class="max-w-5xl mx-auto px-4 py-6" {% block main_attrs %}{% endblock %}>
     {% block content %}{% endblock %}
   </main>
+  </div>
 
   {% if identity %}
   <script>
+    document.body.addEventListener("click", (event) => {
+      const trigger = event.target.closest("[data-open-dialog]");
+      if (!trigger) return;
+      const dialog = document.getElementById(trigger.dataset.openDialog);
+      if (dialog instanceof HTMLDialogElement && !dialog.open) dialog.showModal();
+    });
+
     // Keep one SSE connection across htmx navigation; read the current main
     // element each time because boosted navigation replaces it.
     const dppEvents = new EventSource("/events/canvas");
     let dppRequestsInFlight = 0;
+    let dppPendingCampaignListRefresh = false;
 
-    function dppMaybeRefresh(payload) {
+    function dppRefreshCampaignListIfNeeded() {
+      if (!dppPendingCampaignListRefresh || dppRequestsInFlight > 0) return;
+      dppPendingCampaignListRefresh = false;
+      if (document.querySelector("#main")?.dataset.campaignList === "true") {
+        htmx.ajax("GET", window.location.pathname, { target: "#main", select: "#main", swap: "outerHTML" });
+      }
+    }
+
+    function dppMaybeRefresh(payload, eventName) {
+      const main = document.querySelector("#main");
+      if (eventName === "campaign.summary_updated") {
+        if (main?.dataset.campaignList === "true") {
+          if (dppRequestsInFlight > 0) {
+            dppPendingCampaignListRefresh = true;
+          } else {
+            htmx.ajax("GET", window.location.pathname, { target: "#main", select: "#main", swap: "outerHTML" });
+          }
+        }
+        return;
+      }
+
       // A write request also publishes an SSE event to this tab. Its own
       // response will render the updated page, so don't race it with a
       // second refresh of the still-current URL.
       if (dppRequestsInFlight > 0) return;
 
-      const main = document.querySelector("#main");
       const campaignId = main?.dataset.campaignId;
       const initiativeId = main?.dataset.initiativeId;
       if (campaignId && payload.campaign_id === campaignId) {
@@ -98,8 +129,8 @@
       }
     }
 
-    ["campaign.field_updated", "campaign.status_changed", "initiative.coherence_updated"].forEach((evt) => {
-      dppEvents.addEventListener(evt, (e) => dppMaybeRefresh(JSON.parse(e.data)));
+    ["campaign.field_updated", "campaign.status_changed", "campaign.summary_updated", "initiative.coherence_updated"].forEach((evt) => {
+      dppEvents.addEventListener(evt, (e) => dppMaybeRefresh(JSON.parse(e.data), evt));
     });
 
     // Give immediate feedback and prevent duplicate submissions while the
@@ -121,6 +152,7 @@
         button.disabled = button.dataset.dppWasDisabled === "true";
         delete button.dataset.dppWasDisabled;
       });
+      dppRefreshCampaignListIfNeeded();
     });
   </script>
   {% endif %}

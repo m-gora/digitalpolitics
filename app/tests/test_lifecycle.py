@@ -69,6 +69,11 @@ async def test_full_lifecycle_and_retro_auto_creation(client, db_session):
     headers = auth_headers("anna", {str(berlin.id)})
     campaign_id = await _create_campaign(client, str(berlin.id), headers)
 
+    detail = await client.get(f"/campaigns/{campaign_id}", headers=headers)
+    assert "Entwurf" in detail.text
+    assert "&rarr; Überprüfung" in detail.text
+    assert "&rarr; review" not in detail.text
+
     # No retro yet
     resp = await client.get(f"/campaigns/{campaign_id}/retrospective", headers=headers)
     assert "Noch keine Retrospektive" in resp.text

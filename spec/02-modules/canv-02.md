@@ -28,3 +28,9 @@ Per arch-04 (Privacy by Design), any plan captured under Data Harvest must event
 
 ## Concurrency
 Field saves use last-write-wins. Saving a field pushes a `campaign.field_updated` SSE event (see arch-03) so other connected viewers can refresh rather than working from stale data.
+
+## Campaign list summary
+Once all fields in Zieldefinition, Zielgruppen & Kanäle, and Material, Organisation & Storytelling are completed, the platform generates a concise, complete German sentence of at most 20 words and displays it in the campaign list beneath the Thema. The complete summary is shown without truncation. The summary uses all canvas fields except Data Harvest and is regenerated after subsequent edits to a completed canvas. Provider choice and external processing are specified in adr-04 and adr-05.
+
+## Creator attribution
+Each campaign records the creating identity from `X-User-Id`, displayed on the campaign detail page. A fork records the identity of the user who created the fork, not the creator of its source campaign. Existing campaigns without creator data may leave this value empty.

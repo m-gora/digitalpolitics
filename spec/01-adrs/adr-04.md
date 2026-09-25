@@ -1,16 +1,18 @@
-# ADR 04: Embedding Provider Exception to Privacy By Design
+# ADR 04: AI Processing Scope and Privacy By Design
 
 ## Context
-arch-04 (Privacy By Design) requires tracking data and PII to be strictly separated, and establishes privacy-by-design as a general principle. The initiative coherence score (canv-01) needs text embeddings to compare campaign narratives.
+arch-04 (Privacy By Design) requires tracking data and PII to be strictly separated and establishes privacy-by-design as a general principle. Two campaign features use external AI processing: initiative coherence embeddings (canv-01) and completed-campaign summaries (canv-02).
 
 ## Decision
-The prototype uses the OpenAI embeddings API to compute narrative embeddings. This is a deliberate, scoped exception to arch-04:
+The prototype sends campaign-planning text to the deployment-selected AI provider (see adr-05) for these narrowly defined purposes:
 
-- Only three narrative canvas fields are sent: Thema, Ziel, Storytelling.
-- No PII, citizen data, or Data Harvest content is sent.
-- The sole purpose is computing the heuristic initiative coherence score (canv-01).
+- **Initiative similarity:** Thema is embedded separately for domain similarity; Ziel and Storytelling are embedded together for narrative similarity. Operational fields are excluded.
+- **Campaign summary:** all canvas fields are sent except Data Harvest; the response is a concise German summary for the campaign list.
+- Data Harvest is deliberately excluded because it describes planned handling of citizen data.
+- No street-feedback records or collected citizen data are submitted by these features.
 
 ## Consequences
-- Campaign strategy text (not citizen/personal data) leaves the system boundary to a third-party API.
-- If this is later found unacceptable, the exception is scoped narrowly enough to swap in a local/open-source embedding model (see the alternative considered in adr-01) without touching the rest of the coherence score design.
-- This exception does not extend to any other module; the street feedback module's PII scrubbing (arch-04) is unaffected and remains a separate, stricter requirement.
+- Campaign strategy text leaves the application boundary for embedding and summary generation.
+- The included fields are free text and may be populated by users. The prototype does not detect or scrub accidental personal data in these fields; campaign users must not enter citizen PII there.
+- The summary feature expands the fields processed externally beyond the three narrative fields used for embeddings. Data Harvest remains excluded.
+- This exception does not extend to other modules; the street-feedback module's PII scrubbing (arch-04) remains a separate, stricter requirement.

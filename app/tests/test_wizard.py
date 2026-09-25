@@ -111,6 +111,8 @@ async def test_campaign_overview_links_to_wizard_and_shows_field_explanations(cl
 
     response = await client.get(f"/campaigns/{campaign_id}", headers=headers)
     assert f"/campaigns/{campaign_id}/wizard/zieldefinition" in response.text
+    assert 'href="/campaigns"' in response.text
+    assert "Zurück zur Kampagnenliste" in response.text
     assert "Zieldefinition" in response.text
     assert "Zielgruppen &amp; Kanäle" in response.text
     assert "Material, Organisation &amp; Storytelling" in response.text
