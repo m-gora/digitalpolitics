@@ -29,6 +29,8 @@ from dpp.campaign.models import (
     InitiativeCampaign,
 )
 from dpp.campaign.summary import update_campaign_summary
+from dpp.crowd.models import Questionnaire
+from dpp.crowd.models import Response as CrowdResponse
 from dpp.db import async_session_factory, get_session
 from dpp.templating import templates
 
@@ -321,6 +323,11 @@ async def campaign_detail(
     identity: Identity = Depends(get_identity),
 ):
     campaign = await _get_campaign_or_404(session, campaign_id)
+    crowd_questionnaires = list((await session.scalars(select(Questionnaire).where(Questionnaire.campaign_id == campaign.id).order_by(Questionnaire.created_at.desc()))).all())
+    crowd_counts = {
+        q.id: await session.scalar(select(func.count(CrowdResponse.id)).where(CrowdResponse.questionnaire_id == q.id))
+        for q in crowd_questionnaires
+    }
     can_write = identity.has_write_access(campaign.district_id)
     initiatives = await membership.initiatives_for_campaign(session, campaign.id)
     districts_result = await session.execute(select(District).order_by(District.name))
@@ -348,6 +355,8 @@ async def campaign_detail(
             "districts": districts,
             "CampaignStatus": CampaignStatus,
             "wizard_step": wizard_step,
+            "crowd_questionnaires": crowd_questionnaires,
+            "crowd_counts": crowd_counts,
         },
     )
 
@@ -432,12 +441,8 @@ async def save_campaign_wizard_step(
     await session.commit()
     for field in changed:
         await events.publish_field_updated(str(campaign.id), field)
-    if changed and (
-        changed & set(NARRATIVE_FIELDS)
-        or campaign.domain_embedding is None
-        or campaign.narrative_embedding is None
-    ):
-        background_tasks.add_task(_recompute_embedding_and_coherence, campaign.id)
+    if changed & set(NARRATIVE_FIELDS):
+        background_tasks.add_task(_recompute_campaign_coherence, campaign.id)
     if changed and campaign.canvas_complete:
         background_tasks.add_task(_recompute_campaign_summary, campaign.id)
 
@@ -465,18 +470,19 @@ async def save_campaign_wizard_step(
     return _redirect(f"/campaigns/{campaign.id}")
 
 
-async def _recompute_embedding_and_coherence(campaign_id: uuid.UUID) -> None:
-    """Refresh a campaign's embeddings, then its initiatives' similarity scores (canv-01).
-    """
+async def _recompute_campaign_coherence(campaign_id: uuid.UUID) -> None:
+    """Rescore every initiative the campaign belongs to after its narrative text changed (canv-01)."""
     async with async_session_factory() as session:
-        campaign = await _get_campaign_or_404(session, campaign_id)
-        changed = await coherence.update_campaign_embeddings(campaign)
-        if changed:
-            await session.commit()
         initiatives = await membership.initiatives_for_campaign(session, campaign_id)
         for initiative in initiatives:
-            await coherence.recompute_coherence(session, initiative)
-        await session.commit()
+            await coherence.recompute_and_publish(session, initiative)
+
+
+async def _recompute_initiative_coherence(initiative_id: uuid.UUID) -> None:
+    async with async_session_factory() as session:
+        initiative = await session.get(Initiative, initiative_id)
+        if initiative is not None:
+            await coherence.recompute_and_publish(session, initiative)
 
 
 async def _recompute_campaign_summary(campaign_id: uuid.UUID) -> None:
@@ -513,12 +519,8 @@ async def update_fields(
     for field in changed:
         await events.publish_field_updated(str(campaign.id), field)
 
-    if changed and (
-        changed & set(NARRATIVE_FIELDS)
-        or campaign.domain_embedding is None
-        or campaign.narrative_embedding is None
-    ):
-        background_tasks.add_task(_recompute_embedding_and_coherence, campaign.id)
+    if changed & set(NARRATIVE_FIELDS):
+        background_tasks.add_task(_recompute_campaign_coherence, campaign.id)
     if changed and campaign.canvas_complete:
         background_tasks.add_task(_recompute_campaign_summary, campaign.id)
 
@@ -545,7 +547,17 @@ async def transition(
     except InvalidTransitionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    closed_questionnaire_ids = []
+    if target in {CampaignStatus.FINISHED, CampaignStatus.ABORTED, CampaignStatus.ARCHIVED}:
+        from dpp.crowd.service import close_active_questionnaires_for_campaign
+
+        closed_questionnaire_ids = await close_active_questionnaires_for_campaign(session, campaign.id)
     await session.commit()
+    if closed_questionnaire_ids:
+        from dpp.crowd.events import publish_questionnaire_status
+
+        for questionnaire_id in closed_questionnaire_ids:
+            await publish_questionnaire_status(str(questionnaire_id), "closed")
     return _redirect(f"/campaigns/{campaign.id}")
 
 
@@ -668,6 +680,7 @@ async def create_initiative(
 @initiatives_router.post("/{initiative_id}/edit")
 async def edit_initiative(
     initiative_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     name: str = Form(...),
     description: str = Form(""),
     session: AsyncSession = Depends(get_session),
@@ -679,8 +692,12 @@ async def edit_initiative(
     if not name:
         raise HTTPException(status_code=400, detail="Initiative name cannot be empty.")
 
-    membership.update_initiative(initiative, name, description.strip() or None)
+    description = description.strip() or None
+    context_changed = (initiative.name, initiative.description) != (name, description)
+    membership.update_initiative(initiative, name, description)
     await session.commit()
+    if context_changed:
+        background_tasks.add_task(_recompute_initiative_coherence, initiative.id)
     return _redirect(f"/initiatives/{initiative.id}")
 
 
@@ -717,27 +734,6 @@ async def initiative_detail(
         .where(Campaign.district_id.in_(scope_ids))
     )
     candidates = [c for c in candidates_result.scalars().all() if c.id not in member_ids]
-    domain_similarity_scores = coherence.campaign_similarity_to_peers(members, "domain")
-    narrative_similarity_scores = coherence.campaign_similarity_to_peers(members, "narrative")
-    campaign_rows = [
-        (
-            campaign,
-            domain_similarity_scores.get(campaign.id),
-            narrative_similarity_scores.get(campaign.id),
-        )
-        for campaign in members
-    ]
-    domain_outlier_candidate_id = (
-        min(domain_similarity_scores.items(), key=lambda item: item[1])[0]
-        if len(domain_similarity_scores) >= 3
-        else None
-    )
-    narrative_outlier_candidate_id = (
-        min(narrative_similarity_scores.items(), key=lambda item: item[1])[0]
-        if len(narrative_similarity_scores) >= 3
-        else None
-    )
-
     can_write = identity.has_write_access(initiative.district_id)
     return templates.TemplateResponse(
         request,
@@ -745,11 +741,6 @@ async def initiative_detail(
         {
             "initiative": initiative,
             "members": members,
-            "campaign_rows": campaign_rows,
-            "domain_outlier_candidate_id": domain_outlier_candidate_id,
-            "narrative_outlier_candidate_id": narrative_outlier_candidate_id,
-            "domain_embedded_campaign_count": len(domain_similarity_scores),
-            "narrative_embedded_campaign_count": len(narrative_similarity_scores),
             "candidates": candidates,
             "can_write": can_write,
             "identity": identity,
@@ -760,6 +751,7 @@ async def initiative_detail(
 @initiatives_router.post("/{initiative_id}/members")
 async def add_member(
     initiative_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     campaign_id: uuid.UUID = Form(...),
     session: AsyncSession = Depends(get_session),
     identity: Identity = Depends(get_identity),
@@ -777,9 +769,8 @@ async def add_member(
     except InitiativeMembershipError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    await session.flush()
-    await coherence.recompute_coherence(session, initiative)
     await session.commit()
+    background_tasks.add_task(_recompute_initiative_coherence, initiative.id)
     return _redirect(f"/initiatives/{initiative.id}")
 
 
@@ -787,6 +778,7 @@ async def add_member(
 async def remove_member(
     initiative_id: uuid.UUID,
     campaign_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
     identity: Identity = Depends(get_identity),
 ):
@@ -802,9 +794,8 @@ async def remove_member(
     link = result.scalar_one_or_none()
     if link is not None:
         await session.delete(link)
-        await session.flush()
-        await coherence.recompute_coherence(session, initiative)
         await session.commit()
+        background_tasks.add_task(_recompute_initiative_coherence, initiative.id)
 
     return _redirect(f"/initiatives/{initiative.id}")
 

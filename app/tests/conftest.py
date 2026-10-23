@@ -6,6 +6,8 @@ import uuid
 os.environ["DATABASE_URL"] = "postgresql+asyncpg://dpp:dpp@localhost:5432/dpp_test"
 os.environ["APP_ENV"] = "test"
 os.environ.setdefault("SESSION_SECRET", "test-secret")
+# Never reach the real TypeSafe API from tests, even if a developer .env sets a key.
+os.environ["TYPESAFE_API_KEY"] = ""
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -19,6 +21,7 @@ from dpp.campaign.models import (  # noqa: F401
     InitiativeCampaign,
     Retrospective,
 )
+from dpp.crowd.models import Question, Questionnaire, Response  # noqa: F401
 from dpp.db import Base, async_session_factory, engine
 from dpp.main import app
 

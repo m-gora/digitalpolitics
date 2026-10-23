@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from tests.conftest import auth_headers, make_district
@@ -73,13 +75,22 @@ async def test_full_lifecycle_and_retro_auto_creation(client, db_session):
     assert "Entwurf" in detail.text
     assert "Prüfen" in detail.text
     assert "Überprüfung</button>" not in detail.text
+    rendered_status = re.search(r'name="to_status" value="([^"]+)"', detail.text)
+    assert rendered_status is not None
 
     # No retro yet
     resp = await client.get(f"/campaigns/{campaign_id}/retrospective", headers=headers)
     assert "Noch keine Retrospektive" in resp.text
 
+    # Submit the value rendered by the transition form, as a browser would.
+    resp = await client.post(
+        f"/campaigns/{campaign_id}/transition",
+        data={"to_status": rendered_status.group(1)},
+        headers=headers,
+    )
+    assert resp.status_code == 303
+
     expected_actions = {
-        "review": ("Entwerfen", "Starten"),
         "running": ("Abschließen", "Abbrechen"),
         "finished": ("Archivieren",),
     }

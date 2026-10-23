@@ -1,4 +1,4 @@
-"""Provider-neutral AI interface for embeddings and text generation."""
+"""Provider-neutral AI interface for text generation."""
 
 import logging
 from functools import lru_cache
@@ -12,22 +12,13 @@ logger = logging.getLogger(__name__)
 
 
 class AIProvider(Protocol):
-    async def embed(self, text: str) -> list[float] | None: ...
-
     async def generate_text(self, prompt: str) -> str | None: ...
 
 
 class OpenAIProvider:
-    def __init__(self, api_key: str, embedding_model: str, text_model: str) -> None:
+    def __init__(self, api_key: str, text_model: str) -> None:
         self.client = AsyncOpenAI(api_key=api_key)
-        self.embedding_model = embedding_model
         self.text_model = text_model
-
-    async def embed(self, text: str) -> list[float] | None:
-        response = await self.client.embeddings.create(model=self.embedding_model, input=text)
-        if not response.data:
-            return None
-        return response.data[0].embedding
 
     async def generate_text(self, prompt: str) -> str | None:
         response = await self.client.chat.completions.create(
@@ -43,35 +34,13 @@ class OpenAIProvider:
 
 
 class GoogleGenAIProvider:
-    """Google GenAI adapter.
+    """Google GenAI adapter."""
 
-    Campaign domain and narrative similarity use symmetric sentence-similarity
-    embeddings. The same task prefix is applied to every input so all stored
-    vectors are comparable for this task.
-    """
-
-    EMBEDDING_DIMENSIONS = 1536
-
-    def __init__(self, api_key: str, embedding_model: str, text_model: str) -> None:
+    def __init__(self, api_key: str, text_model: str) -> None:
         from google import genai
 
         self.client = genai.Client(api_key=api_key)
-        self.embedding_model = embedding_model
         self.text_model = text_model
-
-    async def embed(self, text: str) -> list[float] | None:
-        from google.genai import types
-
-        formatted_text = f"task: sentence similarity | query: {text}"
-        response = await self.client.aio.models.embed_content(
-            model=self.embedding_model,
-            contents=formatted_text,
-            config=types.EmbedContentConfig(output_dimensionality=self.EMBEDDING_DIMENSIONS),
-        )
-        if not response.embeddings:
-            return None
-        values = response.embeddings[0].values
-        return list(values) if values else None
 
     async def generate_text(self, prompt: str) -> str | None:
         from google.genai import types
@@ -98,7 +67,6 @@ def get_ai_provider() -> AIProvider | None:
             return None
         return OpenAIProvider(
             api_key=settings.openai_api_key,
-            embedding_model=settings.openai_embedding_model,
             text_model=settings.openai_text_model,
         )
 
@@ -107,6 +75,5 @@ def get_ai_provider() -> AIProvider | None:
         return None
     return GoogleGenAIProvider(
         api_key=settings.google_api_key,
-        embedding_model=settings.google_embedding_model,
         text_model=settings.google_text_model,
     )

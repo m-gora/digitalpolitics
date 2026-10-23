@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#032d67">
+<link rel="manifest" href="/crowd/r/{{ questionnaire.token }}/manifest.webmanifest"><link rel="stylesheet" href="/static/css/output.css"><link rel="stylesheet" href="/static/crowd/crowd.css">
+<title>{{ questionnaire.title }}</title>
+<style>html,body{min-height:100%;margin:0}body{background:#032d67;color:#fff;font-family:"Public Sans",system-ui,sans-serif}.kiosk{min-height:100dvh;display:flex;flex-direction:column;max-width:52rem;margin:auto;padding:max(1.25rem,env(safe-area-inset-top)) 1.25rem max(1.25rem,env(safe-area-inset-bottom))}.kiosk h1{font-size:clamp(2rem,7vw,4rem);line-height:1.05}.kiosk button,.kiosk input,.kiosk textarea{font:inherit}.choice{min-height:3.5rem}.question{display:none}.question.active{display:block}.yellow{background:#ffe000;color:#032d67}.kiosk button:focus-visible,.kiosk textarea:focus-visible{outline:3px solid #00a7e7;outline-offset:3px}</style>
+</head>
+<body>
+<main class="kiosk" id="app" data-token="{{ questionnaire.token }}" data-preview="{{ 'true' if preview else 'false' }}" data-collectable="{{ 'true' if collectable else 'false' }}" data-transcribe="{{ 'true' if transcribe_enabled else 'false' }}">
+{% if not collectable %}
+<section class="my-auto text-center"><h1 class="font-black">Diese Umfrage ist derzeit nicht aktiv</h1></section>
+{% else %}
+{% if preview %}<p class="mb-3 rounded bg-brand-yellow p-3 font-bold text-brand-blue">Vorschau – Antworten werden nicht gespeichert.</p>{% endif %}
+<section id="welcome" class="my-auto"><p class="text-sm font-bold uppercase tracking-widest text-brand-yellow">Befragung</p><h1 class="mt-4 font-black">{{ questionnaire.title }}</h1>{% if questionnaire.intro %}<p class="mt-5 text-lg">{{ questionnaire.intro }}</p>{% endif %}<div class="mt-6 rounded bg-white/10 p-4 text-sm"><p><strong>Datenschutzhinweis:</strong> Deine Antworten sind anonym. Dein Standort wird zusammen mit den Antworten gespeichert. Wenn Spracheingabe verfügbar ist, wird die Aufnahme zur Transkription an OpenAI übertragen. OpenAI kann Audio zur Missbrauchsüberwachung bis zu 30 Tage speichern; wir speichern die Audiodatei nicht. Bitte nenne keine Namen oder persönlichen Kontaktdaten.</p></div><p id="welcome-error" class="mt-4 text-brand-yellow" role="alert"></p><button id="start" class="yellow mt-6 min-h-14 w-full rounded px-6 py-4 text-xl font-black">Start</button><button id="gps-retry" hidden class="mt-3 min-h-14 w-full rounded border-2 border-white px-6 py-3 font-bold">Standort erneut prüfen</button></section>
+<section id="survey" hidden class="my-auto">
+<p id="progress" class="text-sm font-bold text-brand-yellow" aria-live="polite"></p>
+{% for question in questionnaire.questions %}
+<fieldset class="question mt-5" data-question-id="{{ question.id }}" data-type="{{ question.question_type }}" data-required="{{ 'true' if question.required else 'false' }}"><legend class="text-2xl font-bold">{{ question.prompt }}</legend>
+{% if question.question_type == 'text' %}<label class="mt-5 block"><span class="sr-only">{{ question.prompt }}</span><textarea maxlength="500" rows="5" class="answer mt-2 w-full rounded p-4 text-lg text-gray-900" placeholder="Deine Antwort …"></textarea></label>{% if transcribe_enabled %}<button type="button" data-mic class="mt-3 min-h-12 rounded border border-white px-4 py-2 font-bold" aria-label="Antwort einsprechen">🎙 Antwort einsprechen</button><span data-mic-status class="ml-2 text-sm" aria-live="polite"></span>{% endif %}
+{% else %}<div class="mt-5 space-y-3">{% for option in question.options %}<label class="choice flex cursor-pointer items-center gap-4 rounded bg-white p-4 text-lg font-bold text-brand-blue"><input class="answer h-6 w-6" type="{{ 'radio' if question.question_type == 'single_choice' else 'checkbox' }}" name="answer-{{ question.id }}" value="{{ option.id }}">{{ option.label }}</label>{% endfor %}</div>{% endif %}
+</fieldset>{% endfor %}
+<div class="mt-8 flex gap-3"><button id="back" class="min-h-14 flex-1 rounded border-2 border-white px-4 py-3 font-bold">Zurück</button><button id="next" class="yellow min-h-14 flex-1 rounded px-4 py-3 font-black">Weiter</button></div><p id="question-error" class="mt-3 text-brand-yellow" role="alert"></p><p id="sync-count" class="mt-4 text-center text-xs text-white/75" aria-live="polite"></p>
+</section>
+<section id="thanks" hidden class="my-auto text-center"><h1 class="font-black">Vielen Dank!</h1><p class="mt-4 text-lg">Deine Antwort wurde aufgenommen.</p><p id="thanks-sync" class="mt-2 text-sm"></p></section>
+{% endif %}
+</main>
+<script>window.crowdQuestions={{ question_data|tojson }};</script>
+<script src="/static/crowd/respondent.js" defer></script>
+</body></html>

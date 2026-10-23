@@ -1,0 +1,14 @@
+{% macro help_badge(id, label, text, align="left") -%}
+<span class="help-badge help-badge--{{ align }}" data-help-root>
+  <button
+    type="button"
+    class="help-badge__trigger"
+    aria-label="{{ label }}"
+    aria-expanded="false"
+    aria-controls="{{ id }}"
+    aria-describedby="{{ id }}"
+    data-help-toggle
+  ><span aria-hidden="true">?</span></button>
+  <span id="{{ id }}" class="help-badge__panel" role="tooltip" hidden>{{ text }}</span>
+</span>
+{%- endmacro %}

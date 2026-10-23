@@ -2,7 +2,6 @@ import enum
 import uuid
 from datetime import datetime
 
-from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Computed,
     DateTime,
@@ -19,8 +18,6 @@ from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from dpp.db import Base
-
-EMBEDDING_DIM = 1536  # text-embedding-3-small
 
 
 class District(Base):
@@ -120,10 +117,6 @@ class Campaign(Base):
     phasen_flow: Mapped[str | None] = mapped_column(Text, nullable=True)
     storytelling: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Separate embeddings distinguish political domain from campaign narrative.
-    # See adr-04 for the privacy exception this implies.
-    domain_embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
-    narrative_embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
     ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_summary_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     search_vector: Mapped[str] = mapped_column(
@@ -215,6 +208,9 @@ class Initiative(Base):
 
     domain_similarity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     narrative_similarity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    outlier_campaign_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True
+    )
     coherence_computed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

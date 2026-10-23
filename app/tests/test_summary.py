@@ -2,7 +2,6 @@ import uuid
 
 import pytest
 
-import dpp.campaign.coherence as coherence_module
 import dpp.campaign.router as campaign_router
 import dpp.campaign.summary as summary_module
 from dpp.campaign.models import Campaign, CampaignStatus
@@ -34,9 +33,6 @@ class FakeAIProvider:
     def __init__(self, response: str | None = None):
         self.prompts: list[str] = []
         self.response = response
-
-    async def embed(self, text: str) -> list[float] | None:
-        return [0.0] * 1536
 
     async def generate_text(self, prompt: str) -> str | None:
         self.prompts.append(prompt)
@@ -97,11 +93,6 @@ async def test_completed_canvas_edits_regenerate_summary_and_list_displays_it(
     provider = FakeAIProvider()
     monkeypatch.setattr(summary_module, "get_ai_provider", lambda: provider)
 
-    async def fake_embed_text(text: str) -> list[float]:
-        return [0.0] * 1536
-
-    monkeypatch.setattr(coherence_module, "embed_text", fake_embed_text)
-
     response = await client.post("/campaigns", data={"district_id": str(berlin.id)}, headers=headers)
     campaign_id = response.headers["location"].rsplit("/", 1)[-1]
 
@@ -144,15 +135,15 @@ async def test_completed_canvas_edits_regenerate_summary_and_list_displays_it(
     assert '"campaign.summary_updated"' in list_response.text
 
 
-async def test_missing_embedding_retries_after_non_narrative_field_edit(client, db_session, monkeypatch):
+async def test_coherence_recompute_only_runs_for_narrative_field_edits(client, db_session, monkeypatch):
     berlin = await make_district(db_session, "LV Berlin")
     headers = auth_headers("anna", {str(berlin.id)})
-    embedding_attempts = []
+    coherence_attempts = []
 
-    async def record_embedding_attempt(campaign_id):
-        embedding_attempts.append(campaign_id)
+    async def record_coherence_attempt(campaign_id):
+        coherence_attempts.append(campaign_id)
 
-    monkeypatch.setattr(campaign_router, "_recompute_embedding_and_coherence", record_embedding_attempt)
+    monkeypatch.setattr(campaign_router, "_recompute_campaign_coherence", record_coherence_attempt)
 
     response = await client.post("/campaigns", data={"district_id": str(berlin.id)}, headers=headers)
     campaign_id = response.headers["location"].rsplit("/", 1)[-1]
@@ -161,9 +152,9 @@ async def test_missing_embedding_retries_after_non_narrative_field_edit(client, 
         data={"thema": "Wohnen", "ziel": "Mehr Wohnraum"},
         headers=headers,
     )
-    assert embedding_attempts == [uuid.UUID(campaign_id)]
+    assert coherence_attempts == [uuid.UUID(campaign_id)]
 
     await client.post(
         f"/campaigns/{campaign_id}/fields", data={"zielgruppen": "Mieter:innen"}, headers=headers
     )
-    assert embedding_attempts == [uuid.UUID(campaign_id), uuid.UUID(campaign_id)]
+    assert coherence_attempts == [uuid.UUID(campaign_id)]

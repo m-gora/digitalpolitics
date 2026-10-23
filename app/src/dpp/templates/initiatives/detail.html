@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/help_badge.html" import help_badge %}
 {% block title %}{{ initiative.name }}{% endblock %}
 {% block body_attrs %}data-initiative-id="{{ initiative.id }}"{% endblock %}
 
@@ -54,63 +55,73 @@
   style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));"
 >
   <div class="min-w-0 rounded bg-white p-3 shadow sm:p-4">
-    <h2 class="mb-1 font-bold text-brand-blue">Domainähnlichkeit</h2>
-    <p class="text-xs text-gray-500">Basiert auf dem Thema der Kampagnen.</p>
+    <h2 class="mb-1 inline-flex items-center font-bold text-brand-blue">
+      Domainähnlichkeit
+      {{ help_badge(
+        "initiative-domain-help-" ~ initiative.id,
+        "Erklärung zu Domainähnlichkeit",
+        "KI-gestützte Einschätzung auf Basis der Themen der Kampagnen, eingeordnet auf einer fünfstufigen Skala und auf 0 bis 1 normiert. Ein heuristischer Richtwert: nahe 1 bedeutet sehr ähnlich, nahe 0 bedeutet kaum Überschneidung.",
+        "left"
+      ) }}
+    </h2>
     {% if initiative.domain_similarity_score is not none %}
       <p class="text-3xl font-black text-brand-cyan">{{ "%.2f"|format(initiative.domain_similarity_score) }}</p>
-      <p class="text-xs text-gray-500">Mittelwert aus {{ domain_embedded_campaign_count }} Kampagnen mit Thema. Nahe 1 bedeutet ähnlich, nahe 0 wenig ähnlich.</p>
     {% else %}
-      <p class="mt-2 text-sm text-gray-400">Noch nicht berechenbar: mindestens zwei Kampagnen benötigen ein Thema und einen konfigurierten Anbieter.</p>
+      <p class="mt-2 text-sm text-gray-400">Noch nicht berechenbar: mindestens zwei Kampagnen benötigen ein Thema und der Bewertungsdienst muss konfiguriert sein.</p>
     {% endif %}
   </div>
   <div class="min-w-0 rounded bg-white p-3 shadow sm:p-4">
-    <h2 class="mb-1 font-bold text-brand-blue">Narrative Ähnlichkeit</h2>
-    <p class="text-xs text-gray-500">Basiert auf Ziel und Storytelling der Kampagnen.</p>
+    <h2 class="mb-1 inline-flex items-center font-bold text-brand-blue">
+      Narrative Ähnlichkeit
+      {{ help_badge(
+        "initiative-narrative-help-" ~ initiative.id,
+        "Erklärung zu narrativer Ähnlichkeit",
+        "KI-gestützte Einschätzung, wie gut Ziel und Storytelling der Kampagnen gemeinsam auf die Beschreibung der Initiative einzahlen, eingeordnet auf einer fünfstufigen Skala und auf 0 bis 1 normiert. Ein heuristischer Richtwert: nahe 1 bedeutet sehr kohärent, nahe 0 bedeutet kaum Zusammenhang.",
+        "right"
+      ) }}
+    </h2>
     {% if initiative.narrative_similarity_score is not none %}
       <p class="text-3xl font-black text-brand-cyan">{{ "%.2f"|format(initiative.narrative_similarity_score) }}</p>
-      <p class="text-xs text-gray-500">Mittelwert aus {{ narrative_embedded_campaign_count }} Kampagnen mit narrativen Angaben. Nahe 1 bedeutet ähnlich, nahe 0 wenig ähnlich.</p>
     {% else %}
-      <p class="mt-2 text-sm text-gray-400">Noch nicht berechenbar: mindestens zwei Kampagnen benötigen Ziel oder Storytelling und einen konfigurierten Anbieter.</p>
+      <p class="mt-2 text-sm text-gray-400">Noch nicht berechenbar: mindestens zwei Kampagnen benötigen Ziel oder Storytelling und der Bewertungsdienst muss konfiguriert sein.</p>
     {% endif %}
   </div>
   <p class="col-span-2 text-xs text-gray-500">
-    Beide Werte sind heuristische Richtwerte, keine Wahrscheinlichkeit. Berechnet: {{ initiative.coherence_computed_at }}.
+    {% if initiative.coherence_computed_at %}
+      Berechnet: {{ initiative.coherence_computed_at.strftime("%d.%m.%Y %H:%M") }} UTC
+    {% endif %}
+    {{ help_badge(
+      "initiative-coherence-note-" ~ initiative.id,
+      "Hinweis zur Bewertung",
+      "Beide Werte sind KI-gestützte, heuristische Richtwerte und keine Wahrscheinlichkeiten.",
+      "right"
+    ) }}
   </p>
 </section>
 
 <section class="bg-white rounded shadow p-4 mb-4">
-  <h2 class="font-bold text-brand-blue mb-1">Kampagnen in dieser Initiative</h2>
-  <p class="mb-2 text-xs text-gray-500">Peer-Ähnlichkeit je Dimension; der niedrigste Wert ist ab drei Einbettungen ein relativer Ausreißer-Kandidat für diese Dimension.</p>
+  <h2 class="mb-1 inline-flex items-center font-bold text-brand-blue">
+    Kampagnen in dieser Initiative
+    {{ help_badge(
+      "initiative-members-help-" ~ initiative.id,
+      "Erklärung zum Ausreißer-Kandidaten",
+      "Ab drei Kampagnen prüft die KI, ob eine Kampagne im Vergleich zu den anderen deutlich weniger zur Initiative passt, und markiert sie als relativen Ausreißer-Kandidaten für eine menschliche Prüfung. Es gibt keinen festen Schwellenwert; oft ist kein Ausreißer erkennbar.",
+      "left"
+    ) }}
+  </h2>
   <ul class="divide-y">
-    {% for campaign, domain_peer_score, narrative_peer_score in campaign_rows %}
+    {% for campaign in members %}
     <li class="flex flex-wrap items-center justify-between gap-3 py-3">
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-2">
           <a href="/campaigns/{{ campaign.id }}" class="break-words font-bold text-brand-blue hover:underline">{{ campaign.thema or "(kein Thema)" }}</a>
-          {% if campaign.id == domain_outlier_candidate_id %}
-            <span class="rounded-full bg-brand-yellow/30 px-2.5 py-1 text-xs font-bold text-brand-blue">Domain-Ausreißer</span>
-          {% endif %}
-          {% if campaign.id == narrative_outlier_candidate_id %}
-            <span class="rounded-full bg-brand-yellow/30 px-2.5 py-1 text-xs font-bold text-brand-blue">Narrativ-Ausreißer</span>
+          {% if campaign.id == initiative.outlier_campaign_id %}
+            <span class="rounded-full bg-brand-yellow/30 px-2.5 py-1 text-xs font-bold text-brand-blue">Ausreißer-Kandidat</span>
           {% endif %}
         </div>
         <span class="mt-1 inline-flex rounded-full bg-brand-cyan/10 px-2.5 py-1 text-xs font-bold text-brand-blue">{{ campaign.district.name }}</span>
       </div>
       <div class="flex shrink-0 flex-col items-end gap-1">
-        {% if domain_peer_score is not none %}
-          <span class="text-sm font-bold text-brand-blue">Domain: {{ "%.2f"|format(domain_peer_score) }}</span>
-        {% elif campaign.domain_embedding is none %}
-          <span class="text-xs text-gray-500">Domain-Einbettung ausstehend</span>
-        {% else %}
-          <span class="text-xs text-gray-500">Domain: noch keine Vergleichsdaten</span>
-        {% endif %}
-        {% if narrative_peer_score is not none %}
-          <span class="text-sm font-bold text-brand-blue">Narrativ: {{ "%.2f"|format(narrative_peer_score) }}</span>
-        {% elif campaign.narrative_embedding is none %}
-          <span class="text-xs text-gray-500">Narrativ-Einbettung ausstehend</span>
-        {% else %}
-          <span class="text-xs text-gray-500">Narrativ: noch keine Vergleichsdaten</span>
-        {% endif %}
         {% if can_write %}
         <form method="post" action="/initiatives/{{ initiative.id }}/members/{{ campaign.id }}/remove">
           <button type="submit" class="text-xs font-bold text-red-600 underline">aus Initiative entfernen</button>

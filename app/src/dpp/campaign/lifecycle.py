@@ -35,7 +35,7 @@ def apply_field_updates(campaign: Campaign, updates: dict[str, str]) -> set[str]
 
     Only Draft campaigns are editable (canv-05). Returns the set of field
     names that were actually changed (used to decide whether to recompute
-    the domain/narrative embeddings / notify SSE subscribers).
+    initiative coherence / notify SSE subscribers).
     """
     if campaign.status != CampaignStatus.DRAFT:
         raise GatingError("Campaign is not editable in its current status.")

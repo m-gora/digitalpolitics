@@ -1,28 +1,66 @@
 import uuid
+from collections import Counter
+from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import delete
 
 import dpp.campaign.coherence as coherence_module
-from dpp.campaign.models import Campaign
+from dpp.campaign.models import Campaign, Initiative
 from tests.conftest import auth_headers, make_district
 
 pytestmark = pytest.mark.asyncio
 
-EMBEDDING_DIM = 1536
 KEYWORDS = ["wohnen", "verkehr", "mobilisieren"]
 
 
-def _fake_vector(text: str) -> list[float]:
-    vec = [0.0] * EMBEDDING_DIM
+def _topic(text: str) -> str:
     lower = (text or "").lower()
-    for i, kw in enumerate(KEYWORDS):
-        if kw in lower:
-            vec[i] = 1.0
-    return vec
+    return next((kw for kw in KEYWORDS if kw in lower), lower)
 
 
-async def test_similarity_texts_exclude_operational_fields():
+def _rubric_level(topics: list[str]) -> float:
+    return 4.0 if len(set(topics)) == 1 else 0.0
+
+
+class FakeTypeSafe:
+    """Deterministic stand-in for TypeSafe: identical topics score 4 (1.00), differing topics 0."""
+
+    def __init__(self):
+        self.calls: list[dict] = []
+        self.unavailable = False
+
+    async def __call__(self, state, questions):
+        self.calls.append({"state": state, "questions": questions})
+        if self.unavailable:
+            return None
+        campaigns = state["campaigns"]
+        scores = {}
+        if "domain_similarity" in questions:
+            topics = [_topic(c["thema"]) for c in campaigns if c["thema"]]
+            scores["domain_similarity"] = SimpleNamespace(score=_rubric_level(topics))
+        if "narrative_similarity" in questions:
+            topics = [_topic(c["ziel"] or c["storytelling"]) for c in campaigns if c["ziel"] or c["storytelling"]]
+            scores["narrative_similarity"] = SimpleNamespace(score=_rubric_level(topics))
+        choices = {}
+        if "initiative_outlier" in questions:
+            counts = Counter(_topic(c["thema"]) for c in campaigns)
+            lone = [c["id"] for c in campaigns if counts[_topic(c["thema"])] == 1]
+            majority = len(counts) == 2 and len(lone) == 1
+            choices["initiative_outlier"] = SimpleNamespace(choice=lone[0] if majority else "none_clear")
+        return SimpleNamespace(scores=scores, choices=choices)
+
+
+@pytest.fixture(autouse=True)
+def typesafe(monkeypatch) -> FakeTypeSafe:
+    fake = FakeTypeSafe()
+    monkeypatch.setattr(coherence_module, "_ask_typesafe", fake)
+    return fake
+
+
+async def test_similarity_inputs_exclude_operational_fields():
     campaign = Campaign(
+        id=uuid.uuid4(),
         district_id=uuid.uuid4(),
         thema="Bezahlbares Wohnen",
         ziel="Mehr Wohnungen schaffen",
@@ -32,22 +70,21 @@ async def test_similarity_texts_exclude_operational_fields():
         tools="Kontaktformular",
         phasen_flow="Infostand, Auswertung, Kampagnenstart",
     )
+    initiative = Initiative(name="Wohnen", description="Gemeinsame Botschaft")
 
-    assert coherence_module.domain_text(campaign) == "Bezahlbares Wohnen"
-    narrative = coherence_module.narrative_text(campaign)
-    assert narrative == "Ziel: Mehr Wohnungen schaffen\nStorytelling: Stimmen aus dem Kiez"
-    assert "Mieter:innen" not in narrative
-    assert "Infostände" not in narrative
-    assert "Kontaktformular" not in narrative
-    assert "Kampagnenstart" not in narrative
+    state = coherence_module.typesafe_state(initiative, {"C1": campaign})
 
-
-@pytest.fixture(autouse=True)
-def _mock_embeddings(monkeypatch):
-    async def fake_embed_text(text: str):
-        return _fake_vector(text)
-
-    monkeypatch.setattr(coherence_module, "embed_text", fake_embed_text)
+    assert state == {
+        "initiative": {"name": "Wohnen", "description": "Gemeinsame Botschaft"},
+        "campaigns": [
+            {
+                "id": "C1",
+                "thema": "Bezahlbares Wohnen",
+                "ziel": "Mehr Wohnungen schaffen",
+                "storytelling": "Stimmen aus dem Kiez",
+            }
+        ],
+    }
 
 
 async def _create_campaign(client, district_id: str, headers: dict, thema: str, ziel: str) -> str:
@@ -154,98 +191,186 @@ async def test_initiative_edit_and_delete_preserve_campaigns(client, db_session)
     campaign_detail = await client.get(f"/campaigns/{campaign_id}", headers=headers)
     assert campaign_detail.status_code == 200
     assert "Wohnen" in campaign_detail.text
+    assert f'id="campaign-field-help-{campaign_id}-thema"' in campaign_detail.text
+    assert 'aria-label="Erklärung zu Thema"' in campaign_detail.text
+    assert 'role="tooltip" hidden>Worum geht es?</span>' in campaign_detail.text
+
+
+async def _create_initiative(client, district_id: str, headers: dict, name: str, description: str = "") -> str:
+    resp = await client.post(
+        "/initiatives",
+        data={"district_id": district_id, "name": name, "description": description},
+        headers=headers,
+    )
+    return resp.headers["location"].rsplit("/", 1)[-1]
+
+
+async def _add_member(client, initiative_id: str, campaign_id: str, headers: dict) -> None:
+    resp = await client.post(
+        f"/initiatives/{initiative_id}/members", data={"campaign_id": campaign_id}, headers=headers
+    )
+    assert resp.status_code == 303
 
 
 async def test_initiative_shows_separate_domain_and_narrative_scores(client, db_session):
     berlin = await make_district(db_session, "LV Berlin")
     headers = auth_headers("anna", {str(berlin.id)})
-
-    resp = await client.post(
-        "/initiatives", data={"district_id": str(berlin.id), "name": "Bauen und Wohnen"}, headers=headers
-    )
-    initiative_id = resp.headers["location"].rsplit("/", 1)[-1]
+    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Bauen und Wohnen")
 
     c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen Kampagne 1", "Mehr wohnen schaffen")
     c2 = await _create_campaign(client, str(berlin.id), headers, "Wohnen Kampagne 2", "Auch mehr wohnen schaffen")
-
-    await client.post(f"/initiatives/{initiative_id}/members", data={"campaign_id": c1}, headers=headers)
-    resp = await client.post(f"/initiatives/{initiative_id}/members", data={"campaign_id": c2}, headers=headers)
-    assert resp.status_code == 303
+    await _add_member(client, initiative_id, c1, headers)
+    await _add_member(client, initiative_id, c2, headers)
 
     resp = await client.get(f"/initiatives/{initiative_id}", headers=headers)
     assert resp.text.count('text-3xl font-black text-brand-cyan">1.00</p>') == 2
+    assert f'id="initiative-domain-help-{initiative_id}"' in resp.text
+    assert f'id="initiative-narrative-help-{initiative_id}"' in resp.text
+    assert 'aria-label="Erklärung zu Domainähnlichkeit"' in resp.text
+    assert 'role="tooltip" hidden>' in resp.text
+    assert "Ausreißer-Kandidat</span>" not in resp.text
 
-    # A third, thematically unrelated campaign lowers the average coherence.
+    # A third, thematically unrelated campaign lowers both scores and becomes the outlier candidate.
     c3 = await _create_campaign(client, str(berlin.id), headers, "Verkehr Kampagne", "Weniger Autos im Kiez")
-    resp = await client.post(f"/initiatives/{initiative_id}/members", data={"campaign_id": c3}, headers=headers)
-    assert resp.status_code == 303
+    await _add_member(client, initiative_id, c3, headers)
 
     resp = await client.get(f"/initiatives/{initiative_id}", headers=headers)
-    assert resp.text.count('text-3xl font-black text-brand-cyan">0.33</p>') == 2
-    assert "Domain-Ausreißer" in resp.text
-    assert "Narrativ-Ausreißer" in resp.text
+    assert resp.text.count('text-3xl font-black text-brand-cyan">0.00</p>') == 2
+    assert resp.text.count("Ausreißer-Kandidat</span>") == 1
     assert resp.text.count("Kampagnen in dieser Initiative") == 1
-    assert "Domain: 0.00" in resp.text
-    assert "Narrativ: 0.00" in resp.text
     assert "aus Initiative entfernen" in resp.text
+
+    initiative = await db_session.get(Initiative, uuid.UUID(initiative_id))
+    await db_session.refresh(initiative)
+    assert initiative.outlier_campaign_id == uuid.UUID(c3)
 
 
 async def test_domain_and_narrative_similarity_are_independent(client, db_session):
     berlin = await make_district(db_session, "LV Berlin")
     headers = auth_headers("anna", {str(berlin.id)})
-
-    resp = await client.post(
-        "/initiatives", data={"district_id": str(berlin.id), "name": "Mobilisierung"}, headers=headers
-    )
-    initiative_id = resp.headers["location"].rsplit("/", 1)[-1]
+    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Mobilisierung")
 
     c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen", "Menschen mobilisieren")
     c2 = await _create_campaign(client, str(berlin.id), headers, "Verkehr", "Menschen mobilisieren")
-    await client.post(f"/initiatives/{initiative_id}/members", data={"campaign_id": c1}, headers=headers)
-    await client.post(f"/initiatives/{initiative_id}/members", data={"campaign_id": c2}, headers=headers)
+    await _add_member(client, initiative_id, c1, headers)
+    await _add_member(client, initiative_id, c2, headers)
 
     detail = await client.get(f"/initiatives/{initiative_id}", headers=headers)
 
     # The topics differ, but both campaigns have the same goal/narrative.
-    assert 'text-3xl font-black text-brand-cyan">0.00</p>' in detail.text
-    assert 'text-3xl font-black text-brand-cyan">1.00</p>' in detail.text
-    assert "Domain: 0.00" in detail.text
-    assert "Narrativ: 1.00" in detail.text
+    assert detail.text.count('text-3xl font-black text-brand-cyan">0.00</p>') == 1
+    assert detail.text.count('text-3xl font-black text-brand-cyan">1.00</p>') == 1
 
 
-async def test_coherence_score_none_with_fewer_than_two_embedded_members(client, db_session):
+async def test_outlier_none_clear_marks_no_campaign(client, db_session):
     berlin = await make_district(db_session, "LV Berlin")
     headers = auth_headers("anna", {str(berlin.id)})
+    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Gemischt")
 
-    resp = await client.post(
-        "/initiatives", data={"district_id": str(berlin.id), "name": "Solo"}, headers=headers
-    )
-    initiative_id = resp.headers["location"].rsplit("/", 1)[-1]
+    for thema in ("Wohnen", "Verkehr", "Mobilisieren"):
+        campaign_id = await _create_campaign(client, str(berlin.id), headers, thema, thema)
+        await _add_member(client, initiative_id, campaign_id, headers)
+
+    detail = await client.get(f"/initiatives/{initiative_id}", headers=headers)
+    assert "Ausreißer-Kandidat</span>" not in detail.text
+    initiative = await db_session.get(Initiative, uuid.UUID(initiative_id))
+    await db_session.refresh(initiative)
+    assert initiative.outlier_campaign_id is None
+
+
+async def test_coherence_score_none_with_fewer_than_two_scorable_members(client, db_session, typesafe):
+    berlin = await make_district(db_session, "LV Berlin")
+    headers = auth_headers("anna", {str(berlin.id)})
+    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Solo")
     c1 = await _create_campaign(client, str(berlin.id), headers, "Thema", "Ziel")
-
-    resp = await client.post(f"/initiatives/{initiative_id}/members", data={"campaign_id": c1}, headers=headers)
-    assert resp.status_code == 303
+    await _add_member(client, initiative_id, c1, headers)
 
     resp = await client.get(f"/initiatives/{initiative_id}", headers=headers)
     assert "Noch nicht berechenbar" in resp.text
+    assert typesafe.calls == []
 
 
 async def test_remove_member_recomputes_coherence(client, db_session):
     berlin = await make_district(db_session, "LV Berlin")
     headers = auth_headers("anna", {str(berlin.id)})
-
-    resp = await client.post(
-        "/initiatives", data={"district_id": str(berlin.id), "name": "Bauen und Wohnen"}, headers=headers
-    )
-    initiative_id = resp.headers["location"].rsplit("/", 1)[-1]
+    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Bauen und Wohnen")
     c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 1", "Ziel")
     c2 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 2", "Ziel")
+    await _add_member(client, initiative_id, c1, headers)
+    await _add_member(client, initiative_id, c2, headers)
 
-    await client.post(f"/initiatives/{initiative_id}/members", data={"campaign_id": c1}, headers=headers)
-    await client.post(f"/initiatives/{initiative_id}/members", data={"campaign_id": c2}, headers=headers)
+    resp = await client.get(f"/initiatives/{initiative_id}", headers=headers)
+    assert "Noch nicht berechenbar" not in resp.text
 
     resp = await client.post(f"/initiatives/{initiative_id}/members/{c2}/remove", headers=headers)
     assert resp.status_code == 303
 
     resp = await client.get(f"/initiatives/{initiative_id}", headers=headers)
-    assert "Noch nicht berechenbar" in resp.text  # back to a single member -> score is None again
+    assert "Noch nicht berechenbar" in resp.text  # back to a single member -> scores are unavailable again
+
+
+async def test_unavailable_typesafe_keeps_previous_scores(client, db_session, typesafe):
+    berlin = await make_district(db_session, "LV Berlin")
+    headers = auth_headers("anna", {str(berlin.id)})
+    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Bauen und Wohnen")
+    c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 1", "Mehr wohnen")
+    c2 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 2", "Mehr wohnen")
+    await _add_member(client, initiative_id, c1, headers)
+    await _add_member(client, initiative_id, c2, headers)
+
+    typesafe.unavailable = True
+    c3 = await _create_campaign(client, str(berlin.id), headers, "Verkehr 3", "Weniger Autos")
+    await _add_member(client, initiative_id, c3, headers)
+
+    resp = await client.get(f"/initiatives/{initiative_id}", headers=headers)
+    assert resp.text.count('text-3xl font-black text-brand-cyan">1.00</p>') == 2
+
+
+async def test_campaign_edit_and_initiative_edit_trigger_rescoring(client, db_session, typesafe):
+    berlin = await make_district(db_session, "LV Berlin")
+    headers = auth_headers("anna", {str(berlin.id)})
+    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Wohnen", "Alt")
+    c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 1", "Mehr wohnen")
+    c2 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 2", "Mehr wohnen")
+    await _add_member(client, initiative_id, c1, headers)
+    await _add_member(client, initiative_id, c2, headers)
+    typesafe.calls.clear()
+
+    await client.post(f"/campaigns/{c1}/fields", data={"thema": "Verkehr 1"}, headers=headers)
+    assert len(typesafe.calls) == 1
+
+    # Fields outside Thema, Ziel and Storytelling never reach TypeSafe.
+    await client.post(f"/campaigns/{c1}/fields", data={"zielgruppen": "Mieter:innen"}, headers=headers)
+    assert len(typesafe.calls) == 1
+
+    await client.post(
+        f"/initiatives/{initiative_id}/edit", data={"name": "Wohnen", "description": "Neu"}, headers=headers
+    )
+    assert len(typesafe.calls) == 2
+    assert typesafe.calls[-1]["state"]["initiative"]["description"] == "Neu"
+
+    await client.post(
+        f"/initiatives/{initiative_id}/edit", data={"name": "Wohnen", "description": "Neu"}, headers=headers
+    )
+    assert len(typesafe.calls) == 2
+
+
+async def test_deleting_outlier_campaign_clears_outlier(client, db_session):
+    berlin = await make_district(db_session, "LV Berlin")
+    headers = auth_headers("anna", {str(berlin.id)})
+    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Bauen und Wohnen")
+    campaign_ids = [
+        await _create_campaign(client, str(berlin.id), headers, thema, "Ziel")
+        for thema in ("Wohnen 1", "Wohnen 2", "Verkehr 3")
+    ]
+    for campaign_id in campaign_ids:
+        await _add_member(client, initiative_id, campaign_id, headers)
+
+    initiative = await db_session.get(Initiative, uuid.UUID(initiative_id))
+    await db_session.refresh(initiative)
+    assert initiative.outlier_campaign_id == uuid.UUID(campaign_ids[2])
+
+    await db_session.execute(delete(Campaign).where(Campaign.id == uuid.UUID(campaign_ids[2])))
+    await db_session.commit()
+    await db_session.refresh(initiative)
+    assert initiative.outlier_campaign_id is None

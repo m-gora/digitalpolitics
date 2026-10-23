@@ -5,6 +5,8 @@ SSE too, it gets its own Channel instance here (arch-03: "SSE channels are
 scoped by modules").
 """
 
+import uuid
+
 from dpp.sse import Channel
 
 canvas_channel = Channel()
@@ -26,6 +28,7 @@ async def publish_coherence_updated(
     initiative_id: str,
     domain_score: float | None,
     narrative_score: float | None,
+    outlier_campaign_id: uuid.UUID | None = None,
 ) -> None:
     await canvas_channel.publish(
         "initiative.coherence_updated",
@@ -33,5 +36,6 @@ async def publish_coherence_updated(
             "initiative_id": initiative_id,
             "domain_similarity_score": domain_score,
             "narrative_similarity_score": narrative_score,
+            "outlier_campaign_id": str(outlier_campaign_id) if outlier_campaign_id else None,
         },
     )

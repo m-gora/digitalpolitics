@@ -20,7 +20,7 @@ built per `../spec/01-adrs/adr-01.md` (FastAPI + htmx + SSE + Postgres/pgvector/
 ## First-time setup
 
 ```sh
-cp .env.example .env          # choose AI_PROVIDER=openai|google and configure its API key for embeddings/summaries
+cp .env.example .env          # choose AI_PROVIDER=openai|google (summaries) and set TYPESAFE_API_KEY (initiative coherence)
 docker compose up -d db       # Postgres 16 with postgis + pgvector extensions
 uv sync                       # install Python dependencies
 uv run alembic upgrade head   # create the schema
@@ -62,7 +62,9 @@ While developing the frontend, run Tailwind in watch mode in a second terminal:
 ## Tests
 
 Tests run against a real Postgres database (`dpp_test`, created automatically on the same
-`docker compose` instance) since the schema relies on the `pgvector` extension.
+`docker compose` instance) since the schema relies on Postgres-specific features (generated
+`tsvector` columns, UUIDs). The `pgvector` extension and package are kept only because the early
+migrations create vector columns; they can go once those migrations are squashed.
 
 ```sh
 docker compose up -d db
@@ -90,7 +92,7 @@ src/dpp/
     hierarchy.py                     district tree + expand_district_scope (adr-03)
     lifecycle.py                     Zieldefinition->Zielgruppen & Kanäle->Material/Organisation/Storytelling gating, transitions, fork
     membership.py                    initiative create/add/remove-member, queries
-    coherence.py                     embeddings + cosine similarity + recompute orchestration
+    coherence.py                     TypeSafe rubric scoring + recompute orchestration
     events.py                        the "canvas" SSE channel + publish_* helpers
     router.py                        all HTTP routes: /districts, /campaigns, /initiatives,
                                       /events/canvas
@@ -113,11 +115,13 @@ tests/                                pytest + httpx, real Postgres
 - Template forking (canv-03): copies canvas field answers only.
 - Post-mortem retrospective, auto-created on Finished/Aborted (canv-04).
 - Initiatives anchored at a Gliederung and able to coordinate campaigns across its
-  descendants, with member-district tags, separate domain/narrative pairwise cosine-similarity
-  scores, and per-dimension peer similarities to surface relative outlier candidates
-  (canv-01, adr-04, adr-05).
+  descendants, with member-district tags, separate AI-assessed domain/narrative similarity
+  scores (TypeSafe rubric, normalized to 0-1), and a single relative outlier candidate for
+  human review (canv-01, adr-04, adr-06). Scores are recomputed in the background; without
+  `TYPESAFE_API_KEY` they stay empty. `uv run python -m dpp.campaign.backfill_coherence`
+  rescores all initiatives, e.g. after upgrading from the cosine implementation.
 - Completed campaigns get an AI-generated short summary (excluding Data Harvest) displayed
-  in the campaign list (canv-02, adr-04, adr-05). Select one provider for embeddings and text
+  in the campaign list (canv-02, adr-04, adr-05). Select one provider for text
   generation with `AI_PROVIDER=openai` or `AI_PROVIDER=google`; configure `OPENAI_API_KEY` or
   `GOOGLE_API_KEY` accordingly. Without the selected provider's key, the app runs without AI outputs.
 - District-scoped RBAC with hierarchical inheritance via pre-expanded `X-District-Scopes`
@@ -129,3 +133,18 @@ tests/                                pytest + httpx, real Postgres
   only, and does not replay missed events on reconnect (arch-03 accepts this for v1).
 - No real forward-auth proxy; `dpp.auth.dev_impersonation` stands in for local development.
 - Field-level edit conflicts are last-write-wins with no locking.
+
+## Crowdsourcing module
+
+The questionnaire and anonymous respondent flows are specified in `../spec/02-modules/crowd-01.md` through `crowd-05.md`.
+Apply migrations with `uv run alembic upgrade head`. Admin screens are at `/crowd/questionnaires`; the map and response analysis are at `/crowd/analysis`. `Active` always means responses are accepted: a linked questionnaire can only be activated while its campaign is Running, and moving a campaign to Finished or Aborted closes its active questionnaires. Starting a campaign never activates questionnaires automatically.
+
+To add a running demo campaign, a public questionnaire and sample Berlin GPS responses after the standard seed:
+
+```sh
+uv run python -m dpp.crowd.seed_demo
+```
+
+Voice transcription is disabled unless `OPENAI_API_KEY` is configured. The transcription model defaults to `gpt-4o-transcribe` and can be changed with `OPENAI_TRANSCRIBE_MODEL`. Configure `MAP_TILE_URL` to use a production tile service; the OpenStreetMap default is for prototype use only. The respondent PWA needs HTTPS for geolocation, microphone access and service workers (localhost is supported for development). Configure the forward-auth proxy to allow only `/crowd/r/*` and `/crowd/api/r/*` without authentication; all admin and analysis paths remain protected.
+
+Leaflet, MarkerCluster and Leaflet.heat are vendored in `src/dpp/static/crowd/` with license files. The module keeps its generated utility CSS separate from the existing application stylesheet so the existing built CSS is not overwritten.

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from dpp.campaign.models import *
 from dpp.config import get_settings
+from dpp.crowd.models import *
 from dpp.db import Base
 
 # this is the Alembic Config object, which provides

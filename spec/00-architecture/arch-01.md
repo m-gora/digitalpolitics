@@ -8,3 +8,6 @@ The following headers shall be used to send auth information to the backend:
 These headers are only trustworthy when received from the trusted forward-auth proxy network. The application shall be deployed so that clients can never reach it directly and set these headers themselves.
 
 See adr-03 for the exact format and resolution rules of `X-District-Scopes`.
+
+## Public routes
+The crowdsourcing respondent routes (`/crowd/r/*`, `/crowd/api/r/*`) are deliberately public and never read these headers; see adr-07 and crowd-02.

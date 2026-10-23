@@ -27,7 +27,7 @@ async def test_landing_shows_available_and_coming_soon_modules(client):
     assert "Stimmungsbilder und Ideen von Bürger:innen" in response.text
     assert "Bald verfügbar" in response.text
     assert 'href="/infostand"' not in response.text
-    assert 'href="/crowdsourcing"' not in response.text
+    assert 'href="/crowd/questionnaires"' in response.text
     assert 'href="/petitions"' not in response.text
     assert 'href="/beschlussexplorer"' not in response.text
     assert 'viewBox="0 0 178.08 69.73"' in response.text

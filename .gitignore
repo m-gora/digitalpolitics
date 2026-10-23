@@ -13,7 +13,7 @@ wheels/
 .env
 
 # Tailwind build output
-src/dpp/static/css/output.css
+app/src/dpp/static/css/output.css
 
 # Node (Tailwind standalone CLI)
 node_modules/
@@ -24,4 +24,3 @@ bin/
 # tools
 .pytest_cache/
 .ruff_cache/
-

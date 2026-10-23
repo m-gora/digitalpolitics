@@ -13,6 +13,8 @@ from dpp.campaign.router import (
     initiatives_router,
 )
 from dpp.config import get_settings
+from dpp.crowd.router import admin_router as crowd_admin_router
+from dpp.crowd.router import public_router as crowd_public_router
 from dpp.templating import templates
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -29,11 +31,12 @@ async def healthcheck():
     """Unauthenticated liveness endpoint for the container runtime."""
     return {"status": "ok"}
 
-
 app.include_router(districts_router)
 app.include_router(campaigns_router)
 app.include_router(initiatives_router)
 app.include_router(events_router)
+app.include_router(crowd_admin_router)
+app.include_router(crowd_public_router)
 
 templates.env.globals["is_development"] = settings.is_development
 templates.env.globals["dev_personas"] = []

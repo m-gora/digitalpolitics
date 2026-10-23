@@ -13,3 +13,8 @@ Field-level writes use last-write-wins. When a field is saved, `campaign.field_u
 
 ## Reconnects
 On reconnect, the client refetches current state rather than replaying missed events. There is no event log/offset tracking in v1.
+
+## Crowdsourcing module event catalog
+Events use a separate `crowd` channel (see crowd-01, crowd-03, crowd-05).
+- `crowd.questionnaire_status_changed` — a questionnaire moved between Draft, Active and Closed.
+- `crowd.response_received` — a response was stored; carries the questionnaire id and new total count, never location or content.

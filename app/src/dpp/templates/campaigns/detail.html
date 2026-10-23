@@ -1,11 +1,19 @@
 {% extends "base.html" %}
+{% from "components/help_badge.html" import help_badge %}
 {% block title %}{{ campaign.thema or "Kampagne" }}{% endblock %}
 {% block main_attrs %}data-campaign-id="{{ campaign.id }}"{% endblock %}
 
-{% macro answer(label, explanation, value) %}
+{% macro answer(campaign_id, field_id, label, explanation, value) %}
 <div class="border-b border-gray-100 py-3 last:border-0">
-  <h3 class="font-bold text-sm">{{ label }}</h3>
-  <p class="text-xs text-gray-500 mt-0.5">{{ explanation }}</p>
+  <h3 class="inline-flex items-center font-bold text-sm">
+    {{ label }}
+    {{ help_badge(
+      "campaign-field-help-" ~ campaign_id ~ "-" ~ field_id,
+      "Erklärung zu " ~ label,
+      explanation,
+      "left"
+    ) }}
+  </h3>
   <p class="text-sm mt-2 whitespace-pre-wrap">{{ value or "Noch nicht ausgefüllt" }}</p>
 </div>
 {% endmacro %}
@@ -36,6 +44,11 @@
 <p class="text-xs text-gray-500 mb-4">Abgeleitet (Fork) von einer anderen Kampagne.</p>
 {% endif %}
 
+<section class="mb-5 rounded bg-white p-5 shadow">
+  <div class="flex flex-wrap items-center justify-between gap-2"><h2 class="text-lg font-black text-brand-blue">Befragungen</h2><a href="/crowd/questionnaires/new" class="text-sm font-bold text-brand-blue underline">Fragebogen erstellen</a></div>
+  {% if crowd_questionnaires %}<ul class="mt-3 space-y-2">{% for q in crowd_questionnaires %}<li class="flex flex-wrap justify-between gap-2 border-t pt-2"><a href="/crowd/questionnaires/{{ q.id }}" class="font-bold text-brand-blue underline">{{ q.title }}</a><span class="text-sm text-gray-600">{{ crowd_counts[q.id] or 0 }} Antworten · {{ {"draft":"Entwurf","active":"Aktiv","closed":"Geschlossen"}[q.status.value] }}</span></li>{% endfor %}</ul>{% else %}<p class="mt-2 text-sm text-gray-600">Noch keine Befragungen mit dieser Kampagne verknüpft.</p>{% endif %}
+</section>
+
 {% if can_write and campaign.status.value == "draft" %}
 <div class="mb-5">
   <a href="/campaigns/{{ campaign.id }}/wizard/{{ wizard_step }}" class="inline-flex items-center gap-2 bg-brand-blue text-white font-bold px-4 py-2 rounded hover:bg-brand-cyan">
@@ -46,25 +59,25 @@
 
 <section class="bg-white rounded shadow p-5 mb-4">
   <h2 class="text-lg font-black text-brand-blue mb-2">Zieldefinition</h2>
-  {{ answer("Thema", "Worum geht es?", campaign.thema) }}
-  {{ answer("Ziel", "Was ist das Ziel (politisch und kommunikativ)?", campaign.ziel) }}
+  {{ answer(campaign.id, "thema", "Thema", "Worum geht es?", campaign.thema) }}
+  {{ answer(campaign.id, "ziel", "Ziel", "Was ist das Ziel (politisch und kommunikativ)?", campaign.ziel) }}
 </section>
 
 <section class="bg-white rounded shadow p-5 mb-4">
   <h2 class="text-lg font-black text-brand-blue mb-2">Zielgruppen &amp; Kanäle</h2>
-  {{ answer("Zielgruppen", "Gibt es spezielle Zielgruppen?", campaign.zielgruppen) }}
-  {{ answer("Kanäle", "Welche Zulieferer brauchen wir? Wo erreichen wir die Zielgruppe?", campaign.kanaele) }}
-  {{ answer("Momentum", "Welche Multiplikatoren haben wir in unserem Umfeld? Welche Stakeholder und Partner können wir aktivieren?", campaign.momentum) }}
-  {{ answer("Motiv", "Warum sollte jemand mitmachen?", campaign.motiv) }}
+  {{ answer(campaign.id, "zielgruppen", "Zielgruppen", "Gibt es spezielle Zielgruppen?", campaign.zielgruppen) }}
+  {{ answer(campaign.id, "kanaele", "Kanäle", "Welche Zulieferer brauchen wir? Wo erreichen wir die Zielgruppe?", campaign.kanaele) }}
+  {{ answer(campaign.id, "momentum", "Momentum", "Welche Multiplikatoren haben wir in unserem Umfeld? Welche Stakeholder und Partner können wir aktivieren?", campaign.momentum) }}
+  {{ answer(campaign.id, "motiv", "Motiv", "Warum sollte jemand mitmachen?", campaign.motiv) }}
 </section>
 
 <section class="bg-white rounded shadow p-5 mb-5">
   <h2 class="text-lg font-black text-brand-blue mb-2">Material, Organisation &amp; Storytelling</h2>
-  {{ answer("Service", "Was sollte man den Aktivisten zur Verfügung stellen?", campaign.service) }}
-  {{ answer("Data Harvest", "Welche Daten unserer Zielgruppe wären besonders nützlich für eine nutzenstiftende Kommunikation? Was passiert im Anschluss mit diesen Daten?", campaign.data_harvest) }}
-  {{ answer("Tools", "Welche Tools könnten nützlich sein? (Apps, Petitionstools, etc.)", campaign.tools) }}
-  {{ answer("Phasen & Flow", "Wie startet die Aktion um erfolgreich Aufmerksamkeit zu erzeugen? Wie halten wir die Spannung? Wann gibt es Anlässe die wir nutzen können? Wie endet die Aktion?", campaign.phasen_flow) }}
-  {{ answer("Storytelling", "Gibt es eine spannende Perspektive, besondere Personengruppen, etc?", campaign.storytelling) }}
+  {{ answer(campaign.id, "service", "Service", "Was sollte man den Aktivisten zur Verfügung stellen?", campaign.service) }}
+  {{ answer(campaign.id, "data-harvest", "Data Harvest", "Welche Daten unserer Zielgruppe wären besonders nützlich für eine nutzenstiftende Kommunikation? Was passiert im Anschluss mit diesen Daten?", campaign.data_harvest) }}
+  {{ answer(campaign.id, "tools", "Tools", "Welche Tools könnten nützlich sein? (Apps, Petitionstools, etc.)", campaign.tools) }}
+  {{ answer(campaign.id, "phasen-flow", "Phasen & Flow", "Wie startet die Aktion um erfolgreich Aufmerksamkeit zu erzeugen? Wie halten wir die Spannung? Wann gibt es Anlässe die wir nutzen können? Wie endet die Aktion?", campaign.phasen_flow) }}
+  {{ answer(campaign.id, "storytelling", "Storytelling", "Gibt es eine spannende Perspektive, besondere Personengruppen, etc?", campaign.storytelling) }}
 </section>
 
 {% if (can_write and allowed_transitions) or campaign.is_closed %}
@@ -80,7 +93,7 @@
   } %}
     {% for status in allowed_transitions %}
     <form method="post" action="/campaigns/{{ campaign.id }}/transition" hx-indicator="#request-indicator">
-      <input type="hidden" name="to_status" value="{{ status }}" />
+      <input type="hidden" name="to_status" value="{{ status.value }}" />
       <button type="submit" class="rounded bg-gray-200 px-3 py-2 text-sm font-bold hover:bg-brand-cyan hover:text-white">
         {{ transition_labels[status.value] }}
       </button>

@@ -1,0 +1,12 @@
+# Voice Transcription
+- Every `text` question shows a microphone button next to the text area.
+- Tap to start recording, tap to stop. The maximum is 60 seconds, after which recording stops automatically.
+- The audio goes to the backend (`POST /crowd/api/r/{token}/transcribe`). The server forwards it to OpenAI **`gpt-4o-transcribe`** with language hint `de`, so the API key never reaches the browser.
+- The transcript is inserted into the text area, appended to existing text, and **remains editable** before submission.
+- **Audio is never stored.** It is processed in memory and discarded. The server stores neither audio nor transcript at this step. Text is stored only when the response is submitted, and then only after scrubbing (crowd-03).
+- Limits: 60 s and 5 MB. Accepted formats are whatever `MediaRecorder` produces (webm/opus, mp4).
+- If the key is missing, the request fails or the device is offline, the microphone button is hidden or disabled and typing continues to work. The app never blocks (same principle as adr-05).
+- The `via_voice` flag is set on an answer when any part of it came from a transcript.
+- Configuration: `OPENAI_API_KEY` (existing) and `OPENAI_TRANSCRIBE_MODEL` (default `gpt-4o-transcribe`).
+- Transcription is separate from the `AIProvider` text-generation interface (adr-05). It is OpenAI-only behind its own small `Transcriber` interface and independent of `AI_PROVIDER`.
+- Privacy exception and consequences: see adr-07.
