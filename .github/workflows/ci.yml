@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Start PostgreSQL with required extensions
+        run: |
+          set -euo pipefail
+          docker build --tag dpp-ci-db ./db
+          docker run --detach --name dpp-ci-db \
+            --publish 5432:5432 \
+            --env POSTGRES_USER=dpp \
+            --env POSTGRES_PASSWORD=dpp \
+            --env POSTGRES_DB=dpp \
+            dpp-ci-db
+          for attempt in {1..30}; do
+            if docker exec dpp-ci-db pg_isready -U dpp -d dpp; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs dpp-ci-db
+          exit 1
+      - name: Install dependencies
+        run: uv sync --locked --all-groups
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://dpp:dpp@localhost:5432/dpp_test
+          APP_ENV: test
+          SESSION_SECRET: test-secret
+        run: uv run pytest
+      - name: Build application image
+        run: docker build --file Dockerfile --tag dpp:ci .
+      - name: Validate production Compose configuration
+        run: docker compose --env-file ../.env.prod.example -f ../docker-compose.prod.yml config --quiet
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: deploy/updater/go.mod
+      - name: Test and build the updater
+        working-directory: deploy/updater
+        run: |
+          go test ./...
+          docker build --file Dockerfile --tag dpp-updater:ci .
+      - name: Stop PostgreSQL
+        if: always()
+        run: docker rm --force dpp-ci-db || true

@@ -23,6 +23,13 @@ app = FastAPI(title="FDP Digital Politics Platform")
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+
+@app.get("/healthz", include_in_schema=False)
+async def healthcheck():
+    """Unauthenticated liveness endpoint for the container runtime."""
+    return {"status": "ok"}
+
+
 app.include_router(districts_router)
 app.include_router(campaigns_router)
 app.include_router(initiatives_router)
