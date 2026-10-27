@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "components/help_badge.html" import help_badge %}
 {% block title %}{{ initiative.name }}{% endblock %}
-{% block body_attrs %}data-initiative-id="{{ initiative.id }}"{% endblock %}
+{% block main_attrs %}data-initiative-id="{{ initiative.id }}"{% endblock %}
 
 {% block content %}
 <div class="mb-5 flex flex-wrap items-start justify-between gap-3">

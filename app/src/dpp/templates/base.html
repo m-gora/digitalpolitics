@@ -135,6 +135,7 @@
     const dppEvents = new EventSource("/events/canvas");
     let dppRequestsInFlight = 0;
     let dppPendingCampaignListRefresh = false;
+    const dppPendingInitiativeRefreshes = new Map();
 
     function dppRefreshCampaignListIfNeeded() {
       if (!dppPendingCampaignListRefresh || dppRequestsInFlight > 0) return;
@@ -163,17 +164,53 @@
       if (dppRequestsInFlight > 0) return;
 
       const campaignId = main?.dataset.campaignId;
-      const initiativeId = main?.dataset.initiativeId;
       if (campaignId && payload.campaign_id === campaignId) {
-        htmx.ajax("GET", window.location.pathname, { target: "#main", select: "#main", swap: "outerHTML" });
-      }
-      if (initiativeId && payload.initiative_id === initiativeId) {
         htmx.ajax("GET", window.location.pathname, { target: "#main", select: "#main", swap: "outerHTML" });
       }
     }
 
-    ["campaign.field_updated", "campaign.status_changed", "campaign.summary_updated", "initiative.coherence_updated"].forEach((evt) => {
+    function dppApplyInitiativeRefreshes(payloads) {
+      const main = document.querySelector("#main");
+      if (!main || payloads.length === 0) return;
+      if (main.dataset.initiativeList === "true") {
+        htmx.ajax("GET", window.location.pathname + window.location.search, { target: "#main", select: "#main", swap: "outerHTML" });
+        return;
+      }
+
+      const initiativeId = main.dataset.initiativeId;
+      const relevant = payloads.filter((payload) => payload.initiative_id === initiativeId);
+      if (relevant.length === 0) return;
+      if (relevant.some((payload) => payload.change === "deleted")) {
+        window.location.assign("/initiatives");
+        return;
+      }
+      htmx.ajax("GET", window.location.pathname, { target: "#main", select: "#main", swap: "outerHTML" });
+    }
+
+    function dppMaybeRefreshInitiative(payload) {
+      const main = document.querySelector("#main");
+      if (!main) return;
+      const relevant = main.dataset.initiativeList === "true" || main.dataset.initiativeId === payload.initiative_id;
+      if (!relevant) return;
+      if (dppRequestsInFlight > 0) {
+        dppPendingInitiativeRefreshes.set(payload.initiative_id, payload);
+        return;
+      }
+      dppApplyInitiativeRefreshes([payload]);
+    }
+
+    function dppFlushPendingInitiativeRefreshes() {
+      if (dppRequestsInFlight > 0 || dppPendingInitiativeRefreshes.size === 0) return;
+      const pending = Array.from(dppPendingInitiativeRefreshes.values());
+      dppPendingInitiativeRefreshes.clear();
+      dppApplyInitiativeRefreshes(pending);
+    }
+
+    ["campaign.field_updated", "campaign.status_changed", "campaign.summary_updated"].forEach((evt) => {
       dppEvents.addEventListener(evt, (e) => dppMaybeRefresh(JSON.parse(e.data), evt));
+    });
+    ["initiative.updated", "initiative.coherence_updated"].forEach((evt) => {
+      dppEvents.addEventListener(evt, (e) => dppMaybeRefreshInitiative(JSON.parse(e.data)));
     });
 
     // Give immediate feedback and prevent duplicate submissions while the
@@ -196,6 +233,7 @@
         delete button.dataset.dppWasDisabled;
       });
       dppRefreshCampaignListIfNeeded();
+      dppFlushPendingInitiativeRefreshes();
     });
   </script>
   {% endif %}

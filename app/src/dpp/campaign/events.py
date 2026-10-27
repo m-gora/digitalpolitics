@@ -24,6 +24,13 @@ async def publish_summary_updated(campaign_id: str) -> None:
     await canvas_channel.publish("campaign.summary_updated", {"campaign_id": campaign_id})
 
 
+async def publish_initiative_updated(initiative_id: str, change: str) -> None:
+    await canvas_channel.publish(
+        "initiative.updated",
+        {"initiative_id": initiative_id, "change": change},
+    )
+
+
 async def publish_coherence_updated(
     initiative_id: str,
     domain_score: float | None,

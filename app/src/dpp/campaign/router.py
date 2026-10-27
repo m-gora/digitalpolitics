@@ -674,6 +674,7 @@ async def create_initiative(
     initiative = membership.create_initiative(district_id, name, description or None)
     session.add(initiative)
     await session.commit()
+    await events.publish_initiative_updated(str(initiative.id), "created")
     return _redirect(f"/initiatives/{initiative.id}")
 
 
@@ -697,6 +698,8 @@ async def edit_initiative(
     membership.update_initiative(initiative, name, description)
     await session.commit()
     if context_changed:
+        await events.publish_initiative_updated(str(initiative.id), "updated")
+    if context_changed:
         background_tasks.add_task(_recompute_initiative_coherence, initiative.id)
     return _redirect(f"/initiatives/{initiative.id}")
 
@@ -711,6 +714,7 @@ async def delete_initiative(
     ensure_write_access(identity, initiative.district_id)
     await membership.delete_initiative(session, initiative)
     await session.commit()
+    await events.publish_initiative_updated(str(initiative.id), "deleted")
     return _redirect("/initiatives")
 
 
@@ -770,6 +774,7 @@ async def add_member(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     await session.commit()
+    await events.publish_initiative_updated(str(initiative.id), "member_added")
     background_tasks.add_task(_recompute_initiative_coherence, initiative.id)
     return _redirect(f"/initiatives/{initiative.id}")
 
@@ -795,6 +800,7 @@ async def remove_member(
     if link is not None:
         await session.delete(link)
         await session.commit()
+        await events.publish_initiative_updated(str(initiative.id), "member_removed")
         background_tasks.add_task(_recompute_initiative_coherence, initiative.id)
 
     return _redirect(f"/initiatives/{initiative.id}")

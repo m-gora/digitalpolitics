@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import delete
 
 import dpp.campaign.coherence as coherence_module
+from dpp.campaign import events
 from dpp.campaign.models import Campaign, Initiative
 from tests.conftest import auth_headers, make_district
 
@@ -125,6 +126,7 @@ async def test_initiative_accepts_campaigns_from_descendants_and_shows_member_di
 
     detail_response = await client.get(f"/initiatives/{initiative_id}", headers=headers)
     assert "Koordiniert von LV Berlin" in detail_response.text
+    assert f'data-initiative-id="{initiative_id}"' in detail_response.text
     assert "BV Friedrichshain-Kreuzberg" in detail_response.text
     assert "OV Kreuzberg" in detail_response.text
 
@@ -196,6 +198,39 @@ async def test_initiative_edit_and_delete_preserve_campaigns(client, db_session)
     assert 'role="tooltip" hidden>Worum geht es?</span>' in campaign_detail.text
 
 
+async def test_initiative_create_edit_and_delete_are_published(client, db_session):
+    berlin = await make_district(db_session, "LV Berlin")
+    headers = auth_headers("coordinator", {str(berlin.id)})
+    subscriber = events.canvas_channel.subscribe()
+    try:
+        created = await client.post(
+            "/initiatives", data={"district_id": str(berlin.id), "name": "Wohnen"}, headers=headers
+        )
+        initiative_id = created.headers["location"].rsplit("/", 1)[-1]
+        event = subscriber.get_nowait()
+        assert event.event == "initiative.updated"
+        assert event.data == {"initiative_id": initiative_id, "change": "created"}
+
+        edited = await client.post(
+            f"/initiatives/{initiative_id}/edit",
+            data={"name": "Bauen und Wohnen", "description": "Gemeinsame Botschaft"},
+            headers=headers,
+        )
+        assert edited.status_code == 303
+        event = subscriber.get_nowait()
+        assert event.event == "initiative.updated"
+        assert event.data == {"initiative_id": initiative_id, "change": "updated"}
+        assert subscriber.get_nowait().event == "initiative.coherence_updated"
+
+        deleted = await client.post(f"/initiatives/{initiative_id}/delete", headers=headers)
+        assert deleted.status_code == 303
+        event = subscriber.get_nowait()
+        assert event.event == "initiative.updated"
+        assert event.data == {"initiative_id": initiative_id, "change": "deleted"}
+    finally:
+        events.canvas_channel.unsubscribe(subscriber)
+
+
 async def _create_initiative(client, district_id: str, headers: dict, name: str, description: str = "") -> str:
     resp = await client.post(
         "/initiatives",
@@ -243,6 +278,63 @@ async def test_initiative_shows_separate_domain_and_narrative_scores(client, db_
     initiative = await db_session.get(Initiative, uuid.UUID(initiative_id))
     await db_session.refresh(initiative)
     assert initiative.outlier_campaign_id == uuid.UUID(c3)
+
+
+async def test_member_changes_and_recomputed_scores_are_published(client, db_session):
+    berlin = await make_district(db_session, "LV Berlin")
+    headers = auth_headers("anna", {str(berlin.id)})
+    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Bauen und Wohnen")
+    c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen Kampagne 1", "Mehr wohnen schaffen")
+    c2 = await _create_campaign(client, str(berlin.id), headers, "Wohnen Kampagne 2", "Auch mehr wohnen schaffen")
+
+    subscriber = events.canvas_channel.subscribe()
+    try:
+        await _add_member(client, initiative_id, c1, headers)
+        first_change = subscriber.get_nowait()
+        assert first_change.event == "initiative.updated"
+        assert first_change.data == {"initiative_id": initiative_id, "change": "member_added"}
+        # A single scorable member refreshes the unavailable scores to None.
+        assert subscriber.get_nowait().event == "initiative.coherence_updated"
+
+        await _add_member(client, initiative_id, c2, headers)
+        second_change = subscriber.get_nowait()
+        coherence_update = subscriber.get_nowait()
+        assert second_change.event == "initiative.updated"
+        assert second_change.data == {"initiative_id": initiative_id, "change": "member_added"}
+        assert coherence_update.event == "initiative.coherence_updated"
+        assert coherence_update.data["initiative_id"] == initiative_id
+        assert coherence_update.data["domain_similarity_score"] == 1.0
+        assert coherence_update.data["narrative_similarity_score"] == 1.0
+
+        removed = await client.post(f"/initiatives/{initiative_id}/members/{c2}/remove", headers=headers)
+        assert removed.status_code == 303
+        removal = subscriber.get_nowait()
+        removal_coherence = subscriber.get_nowait()
+        assert removal.event == "initiative.updated"
+        assert removal.data == {"initiative_id": initiative_id, "change": "member_removed"}
+        assert removal_coherence.event == "initiative.coherence_updated"
+    finally:
+        events.canvas_channel.unsubscribe(subscriber)
+
+
+async def test_membership_event_is_published_when_scoring_is_unavailable(client, db_session, typesafe):
+    berlin = await make_district(db_session, "LV Berlin")
+    headers = auth_headers("anna", {str(berlin.id)})
+    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Wohnen")
+    c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 1", "Mehr wohnen")
+    c2 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 2", "Mehr wohnen")
+    await _add_member(client, initiative_id, c1, headers)
+    typesafe.unavailable = True
+
+    subscriber = events.canvas_channel.subscribe()
+    try:
+        await _add_member(client, initiative_id, c2, headers)
+        change = subscriber.get_nowait()
+        assert change.event == "initiative.updated"
+        assert change.data == {"initiative_id": initiative_id, "change": "member_added"}
+        assert subscriber.empty()
+    finally:
+        events.canvas_channel.unsubscribe(subscriber)
 
 
 async def test_domain_and_narrative_similarity_are_independent(client, db_session):

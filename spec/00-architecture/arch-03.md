@@ -6,6 +6,7 @@ SSE channels are scoped by modules, so that the client does not need to drop eve
 - `campaign.field_updated` — a field in Zieldefinition, Zielgruppen & Kanäle, or Material, Organisation & Storytelling was saved.
 - `campaign.status_changed` — a campaign transitioned between lifecycle statuses (see canv-05).
 - `campaign.summary_updated` — a completed campaign's AI-generated list summary was saved (see canv-02).
+- `initiative.updated` — an initiative was created, edited, deleted, or had a member added or removed; the event includes its id and change kind.
 - `initiative.coherence_updated` — an initiative's domain and/or narrative similarity scores were recomputed; the event includes both score values.
 
 ## Concurrent edits
