@@ -120,9 +120,17 @@ async def test_auth_required_for_admin_but_public_respondent_is_anonymous(client
     assert public.status_code == 200
     admin = await client.get("/crowd/questionnaires", headers=auth_headers("viewer", set()))
     assert admin.status_code == 200
+    assert 'href="/districts"' not in admin.text
+    assert 'href="/campaigns"' not in admin.text
+    assert 'href="/initiatives"' not in admin.text
+    assert 'href="/crowd/questionnaires" class="text-brand-yellow underline" aria-current="page"' in admin.text
     analysis_page = await client.get("/crowd/analysis", headers=auth_headers("viewer", set()))
     assert analysis_page.status_code == 200
     assert "Geodatenanalyse" in analysis_page.text
+    assert 'href="/crowd/questionnaires"' in analysis_page.text
+    assert 'href="/crowd/analysis" class="text-brand-yellow underline" aria-current="page"' in analysis_page.text
+    assert 'href="/campaigns"' not in analysis_page.text
+    assert '<nav aria-label="Hauptnavigation"' not in public.text
 
 
 async def test_creator_can_preview_draft_without_storage(client, db_session):

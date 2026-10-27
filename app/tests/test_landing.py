@@ -59,6 +59,9 @@ async def test_campaign_navigation_only_appears_inside_campaign_context(client):
     assert 'href="/districts"' in campaigns.text
     assert 'href="/campaigns"' in campaigns.text
     assert 'href="/initiatives"' in campaigns.text
-    assert '<nav class="flex flex-wrap' in campaigns.text
+    assert 'href="/crowd/questionnaires"' not in campaigns.text
+    assert 'href="/crowd/analysis"' not in campaigns.text
+    assert '<nav aria-label="Hauptnavigation"' in campaigns.text
+    assert 'href="/campaigns" class="text-brand-yellow underline" aria-current="page"' in campaigns.text
     assert 'hx-target="#main"' not in campaigns.text
     assert "<table" not in campaigns.text
