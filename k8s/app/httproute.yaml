@@ -1,0 +1,48 @@
+# Main traffic: everything except /oauth2/* goes to dpp behind the
+# forward-auth chain. The oauth2-proxy sidecar terminates the auth flow
+# (start/callback) directly.
+#
+# Attached to the existing cluster Gateway (kube-system/cluster, class
+# traefik); TLS is terminated there with the infra-owned wildcard cert for
+# *.cloud.marcodoes.tech. external-dns creates the DNS record for the
+# hostname (label below).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: dpp
+  namespace: dpp
+  labels:
+    externaldns.kubernetes.io/enabled: "true"
+spec:
+  parentRefs:
+    - name: cluster
+      namespace: kube-system
+      sectionName: websecure
+  hostnames:
+    - dpp.cloud.marcodoes.tech
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /oauth2
+      backendRefs:
+        - name: dpp
+          port: 4180
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: dpp-forwardauth
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: dpp-static-headers
+      backendRefs:
+        - name: dpp
+          port: 8000

@@ -1,0 +1,12 @@
+# Stable alias for the postgres instance owned by the infra stack
+# (StatefulSet postgres in namespace postgres; ClusterIP service postgres-rw).
+# If the infra repo ever moves postgres to another namespace, only this
+# externalName changes — the DATABASE_URL secret keeps using the local name.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: dpp
+spec:
+  type: ExternalName
+  externalName: postgres-rw.postgres.svc.cluster.local

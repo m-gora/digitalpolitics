@@ -1,0 +1,15 @@
+# SOPS configuration: secrets in k8s/ are encrypted with the cluster's age
+# key (flux-kustomize decrypts with Secret flux-system/sops-age). Only the
+# `data`/`stringData` blocks are encrypted; metadata stays readable so diffs
+# and PR reviews show structure without secrets.
+#
+# The private age key lives ONLY in the cluster (flux-system/sops-age) and in
+# the operator's personal backup. Never commit it.
+#
+# Edit/create secrets with:  sops k8s/migrations/secret-dpp-db.yaml
+# Encrypt a fresh plaintext file:
+#   sops --encrypt --in-place --encrypted-regex '^(data|stringData)$' file.yaml
+creation_rules:
+  - path_regex: k8s/.*\.ya?ml$
+    encrypted_regex: '^(data|stringData)$'
+    age: age10r7w0vfwaj2s3t3nfc5ptgg8ra6jff2crra67rzds2rrnh6vhevqffpcyx

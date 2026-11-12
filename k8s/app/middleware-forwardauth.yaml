@@ -1,0 +1,20 @@
+# Forwards unauthenticated requests to the oauth2-proxy sidecar (auth flow)
+# and relays the identity claims oauth2-proxy derives from the Auth0 ID token
+# onto the request sent to dpp. X-User-Id comes from the `sub` claim
+# (oauth2-proxy default --user-claim, kept unchanged).
+#
+# roles/district-scopes are NOT per-user claims (see adr-03): they are injected
+# statically by middleware-staticheaders.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: dpp-forwardauth
+  namespace: dpp
+spec:
+  forwardAuth:
+    address: http://dpp:4180/oauth2/auth
+    # Trust only these from the auth response; the app ignores anything else.
+    authResponseHeaders:
+      - X-Auth-Request-User
+      - X-Auth-Request-Preferred-Username
+      - X-Auth-Request-Email

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dpp
+  namespace: dpp
+spec:
+  selector:
+    app: dpp
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+    - name: auth
+      port: 4180
+      targetPort: 4180

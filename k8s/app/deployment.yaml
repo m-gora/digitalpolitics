@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpp
+  namespace: dpp
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+    # Simplest safe strategy for a single-replica app against one postgres:
+    # scale-down-to-zero before the new pod starts (also avoids two app
+    # pods racing on the same SSE/event streams during rollouts).
+  selector:
+    matchLabels:
+      app: dpp
+  template:
+    metadata:
+      labels:
+        app: dpp
+    spec:
+      containers:
+        - name: dpp
+          # NOTE: keep the image tag in sync with
+          # k8s/migrations/migration-job.yaml; dependabot bumps both.
+          image: ghcr.io/m-gora/digital-politics-platform:v1.2.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: dpp-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: dpp-db
+                  key: DATABASE_URL
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: dpp-app
+                  key: SESSION_SECRET
+            - name: GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dpp-app
+                  key: GOOGLE_API_KEY
+                  optional: true
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dpp-app
+                  key: OPENAI_API_KEY
+                  optional: true
+            - name: TYPESAFE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dpp-app
+                  key: TYPESAFE_API_KEY
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4180
+              name: auth
+          envFrom:
+            - configMapRef:
+                name: dpp-config
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: dpp-auth
+                  key: OAUTH2_PROXY_CLIENT_ID
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: dpp-auth
+                  key: OAUTH2_PROXY_CLIENT_SECRET
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: dpp-auth
+                  key: OAUTH2_PROXY_COOKIE_SECRET
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 5
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi

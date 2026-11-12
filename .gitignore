@@ -24,3 +24,6 @@ bin/
 # tools
 .pytest_cache/
 .ruff_cache/
+
+# SOPS/age private keys never belong in the repo
+*.agekey
