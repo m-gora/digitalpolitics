@@ -69,13 +69,28 @@ async def client():
         yield ac
 
 
-def auth_headers(user_id: str, district_scopes: set[str], roles: tuple[str, ...] = ("member",)) -> dict[str, str]:
-    """Build forward-auth headers directly (arch-01), bypassing dev impersonation."""
-    return {
+def auth_headers(
+    user_id: str,
+    district_scopes: set[str],
+    roles: tuple[str, ...] = ("member",),
+    display_name: str | None = None,
+    email: str | None = None,
+) -> dict[str, str]:
+    """Build forward-auth headers directly (arch-01), bypassing dev impersonation.
+
+    display_name/email mirror the X-Auth-Request-* headers oauth2-proxy relays
+    in production (the display-name fallback chain source).
+    """
+    headers = {
         "X-User-Id": user_id,
         "X-User-Roles": ",".join(roles),
         "X-District-Scopes": ",".join(district_scopes),
     }
+    if display_name is not None:
+        headers["X-Auth-Request-Preferred-Username"] = display_name
+    if email is not None:
+        headers["X-Auth-Request-Email"] = email
+    return headers
 
 
 async def make_district(session, name: str, parent=None) -> District:

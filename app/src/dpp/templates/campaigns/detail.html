@@ -24,7 +24,7 @@
   <div>
     <p class="text-sm text-gray-600">{{ campaign.district.name }}</p>
     {% if campaign.created_by %}
-    <p class="mt-1 break-words text-xs text-gray-500">Erstellt von {{ campaign.created_by }}</p>
+    <p class="mt-1 break-words text-xs text-gray-500">Erstellt von {{ campaign.created_by_name or campaign.created_by }}</p>
     {% endif %}
     <h1 class="text-2xl font-black text-brand-blue">{{ campaign.thema or "Neue Kampagne" }}</h1>
   </div>

@@ -2,8 +2,10 @@
 
 There is no real forward-auth proxy in local development. This module lets a
 developer pick a persona from a small fixed list and fabricates the same
-X-User-Id / X-User-Roles / X-District-Scopes headers a real proxy would send
-(see arch-01, adr-03). It is only ever wired up when APP_ENV=development
+X-User-Id / X-User-Roles / X-District-Scopes headers a real proxy would send,
+plus the X-Auth-Request-Preferred-Username / X-Auth-Request-Email headers that
+oauth2-proxy relays in production (display-name source; see arch-01, adr-03).
+It is only ever wired up when APP_ENV=development
 (see dpp.main); it must never run in a real deployment, since it would let
 any client set its own identity.
 """
@@ -15,7 +17,13 @@ from itsdangerous import BadSignature, URLSafeSerializer
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from dpp.auth.headers import DISTRICT_SCOPES_HEADER, USER_ID_HEADER, USER_ROLES_HEADER
+from dpp.auth.headers import (
+    DISTRICT_SCOPES_HEADER,
+    USER_EMAIL_HEADER,
+    USER_ID_HEADER,
+    USER_NAME_HEADER,
+    USER_ROLES_HEADER,
+)
 
 IMPERSONATION_COOKIE = "dpp_dev_identity"
 
@@ -26,21 +34,45 @@ class DevPersona:
     label: str
     anchor_district_name: str
     roles: tuple[str, ...] = ("member",)
+    email: str = ""
+    name: str = ""
 
 
 # Matches the seed data in dpp.seed. Each persona is anchored at a district;
 # their effective X-District-Scopes is that district + all its descendants
 # (see services.hierarchy.expand_district_scope), demonstrating the
-# hierarchical inheritance rule from arch-02.
+# hierarchical inheritance rule from arch-02. The name/email fields mirror
+# the Auth0 claims oauth2-proxy relays in production, so the display-name
+# fallback chain is exercised identically in dev.
 DEV_PERSONAS: list[DevPersona] = [
-    DevPersona(id="anna", label="Anna Berg — LV Berlin", anchor_district_name="LV Berlin"),
+    DevPersona(
+        id="anna",
+        label="Anna Berg — LV Berlin",
+        anchor_district_name="LV Berlin",
+        name="Anna Berg",
+        email="anna@example.dev",
+    ),
     DevPersona(
         id="jonas",
         label="Jonas Krüger — BV Friedrichshain-Kreuzberg",
         anchor_district_name="BV Friedrichshain-Kreuzberg",
+        name="Jonas Krüger",
+        email="jonas@example.dev",
     ),
-    DevPersona(id="mira", label="Mira Noll — OV Kreuzberg", anchor_district_name="OV Kreuzberg"),
-    DevPersona(id="peter", label="Peter Sailer — BV Mitte", anchor_district_name="BV Mitte"),
+    DevPersona(
+        id="mira",
+        label="Mira Noll — OV Kreuzberg",
+        anchor_district_name="OV Kreuzberg",
+        name="Mira Noll",
+        email="mira@example.dev",
+    ),
+    DevPersona(
+        id="peter",
+        label="Peter Sailer — BV Mitte",
+        anchor_district_name="BV Mitte",
+        name="Peter Sailer",
+        email="peter@example.dev",
+    ),
 ]
 
 
@@ -48,8 +80,21 @@ def _serializer(secret: str) -> URLSafeSerializer:
     return URLSafeSerializer(secret, salt="dpp-dev-impersonation")
 
 
-def encode_identity_cookie(secret: str, user_id: str, roles: tuple[str, ...], district_scopes: set[str]) -> str:
-    payload = {"user_id": user_id, "roles": list(roles), "district_scopes": sorted(district_scopes)}
+def encode_identity_cookie(
+    secret: str,
+    user_id: str,
+    roles: tuple[str, ...],
+    district_scopes: set[str],
+    name: str = "",
+    email: str = "",
+) -> str:
+    payload = {
+        "user_id": user_id,
+        "roles": list(roles),
+        "district_scopes": sorted(district_scopes),
+        "name": name,
+        "email": email,
+    }
     return _serializer(secret).dumps(payload)
 
 
@@ -94,5 +139,9 @@ class DevImpersonationMiddleware:
             headers[USER_ID_HEADER] = identity_payload["user_id"]
             headers[USER_ROLES_HEADER] = ",".join(identity_payload["roles"])
             headers[DISTRICT_SCOPES_HEADER] = ",".join(identity_payload["district_scopes"])
+            if identity_payload.get("name"):
+                headers[USER_NAME_HEADER] = identity_payload["name"]
+            if identity_payload.get("email"):
+                headers[USER_EMAIL_HEADER] = identity_payload["email"]
 
         await self.app(scope, receive, send)

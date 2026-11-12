@@ -84,8 +84,13 @@ def close(questionnaire: Questionnaire, now: datetime | None = None) -> None:
 
 
 def duplicate(
-    questionnaire: Questionnaire, created_by: str, campaign: Campaign | None = None
+    questionnaire: Questionnaire,
+    created_by: str,
+    campaign: Campaign | None = None,
+    created_by_name: str | None = None,
 ) -> Questionnaire:
+    """Clone a questionnaire. The creator fields record the *acting* user
+    (the person performing the clone), never the original's creator."""
     campaign_id = (
         questionnaire.campaign_id
         if campaign is not None and campaign.status in {CampaignStatus.DRAFT, CampaignStatus.REVIEW, CampaignStatus.RUNNING}
@@ -95,6 +100,7 @@ def duplicate(
         title=f"{questionnaire.title[:90]} (Kopie)",
         intro=questionnaire.intro,
         created_by=created_by,
+        created_by_name=created_by_name,
         campaign_id=campaign_id,
         questions=[
             Question(

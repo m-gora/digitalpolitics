@@ -30,6 +30,7 @@ async def seed_demo() -> None:
                 district_id=district.id,
                 status=CampaignStatus.RUNNING,
                 created_by="demo",
+                created_by_name="Demo",
                 thema="Kiezgrün – Demo Crowdsourcing",
                 ziel="Rückmeldungen zu Grünflächen im Kiez sammeln.",
                 data_harvest="Befragungsdaten ohne direkte Identifikatoren; Aufbewahrungsdauer vor Livebetrieb prüfen.",
@@ -48,6 +49,7 @@ async def seed_demo() -> None:
                 intro="Was sollte sich bei den Grünflächen in deinem Kiez ändern?",
                 status=QuestionnaireStatus.ACTIVE,
                 created_by="demo",
+                created_by_name="Demo",
                 campaign_id=campaign.id,
                 collection_started_at=datetime.now(UTC) - timedelta(days=30),
                 questions=[

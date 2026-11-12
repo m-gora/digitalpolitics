@@ -40,6 +40,8 @@ async def impersonate(
         user_id=persona.id,
         roles=persona.roles,
         district_scopes=scopes,
+        name=persona.name,
+        email=persona.email,
     )
 
     referer = request.headers.get("referer", "/")

@@ -98,6 +98,7 @@ async def create_questionnaire(request: Request, session: AsyncSession = Depends
             title=title.strip(),
             intro=intro.strip() or None,
             created_by=identity.user_id,
+            created_by_name=identity.display_name,
             status=QuestionnaireStatus.DRAFT,
         )
         service.set_definition(q, title, intro, questions)
@@ -218,7 +219,7 @@ async def duplicate_questionnaire(qid: uuid.UUID, session: AsyncSession = Depend
     )
     if source is None:
         raise HTTPException(404, "Fragebogen nicht gefunden.")
-    clone = service.duplicate(source, identity.user_id, source.campaign)
+    clone = service.duplicate(source, identity.user_id, source.campaign, created_by_name=identity.display_name)
     session.add(clone)
     await session.commit()
     return _redirect(f"/crowd/questionnaires/{clone.id}")

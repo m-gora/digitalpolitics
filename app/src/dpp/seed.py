@@ -41,6 +41,8 @@ async def seed() -> None:
         mietendeckel = Campaign(
             district_id=bv_fk.id,
             status=CampaignStatus.DRAFT,
+            created_by="jonas",
+            created_by_name="Jonas Krüger",
             thema="Mietendeckel für Friedrichshain-Kreuzberg",
             ziel="Politisch: Verlängerung des Mietendeckels durchsetzen. "
             "Kommunikativ: Mieter:innen über ihre Rechte aufklären.",
@@ -52,6 +54,8 @@ async def seed() -> None:
         leerstand = Campaign(
             district_id=bv_fk.id,
             status=CampaignStatus.DRAFT,
+            created_by="jonas",
+            created_by_name="Jonas Krüger",
             thema="Leerstand melden Kampagne",
             ziel="Politisch: Leerstehende Wohnungen dem Markt zuführen. "
             "Kommunikativ: Meldeverfahren bekannt machen.",
@@ -63,12 +67,16 @@ async def seed() -> None:
         gruenflaechen = Campaign(
             district_id=ov_kreuzberg.id,
             status=CampaignStatus.DRAFT,
+            created_by="mira",
+            created_by_name="Mira Noll",
             thema="Mehr Grünflächen in Kreuzberg",
             ziel="Politisch: Neue Grünflächen im Bezirk verankern.",
         )
         kiezfest = Campaign(
             district_id=ov_wedding.id,
             status=CampaignStatus.FINISHED,
+            created_by="peter",
+            created_by_name="Peter Sailer",
             thema="Kiezfest Wedding",
             ziel="Politisch: Sichtbarkeit im Kiez erhöhen. Kommunikativ: Nahbarkeit zeigen.",
             zielgruppen="Anwohner:innen aller Altersgruppen",

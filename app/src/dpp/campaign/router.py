@@ -296,7 +296,7 @@ async def create_campaign_from_wizard(
     identity: Identity = Depends(get_identity),
 ):
     ensure_write_access(identity, district_id)
-    campaign = lifecycle.create_campaign(district_id, created_by=identity.user_id)
+    campaign = lifecycle.create_campaign(district_id, created_by=identity.user_id, created_by_name=identity.display_name)
     session.add(campaign)
     await session.commit()
     return _redirect(f"/campaigns/{campaign.id}/wizard/zieldefinition")
@@ -309,7 +309,7 @@ async def create_campaign(
     identity: Identity = Depends(get_identity),
 ):
     ensure_write_access(identity, district_id)
-    campaign = lifecycle.create_campaign(district_id, created_by=identity.user_id)
+    campaign = lifecycle.create_campaign(district_id, created_by=identity.user_id, created_by_name=identity.display_name)
     session.add(campaign)
     await session.commit()
     return _redirect(f"/campaigns/{campaign.id}")
@@ -571,7 +571,9 @@ async def fork(
     source = await _get_campaign_or_404(session, campaign_id)  # read is global, per arch-02
     ensure_write_access(identity, target_district_id)
 
-    forked = lifecycle.fork_campaign(source, target_district_id, created_by=identity.user_id)
+    forked = lifecycle.fork_campaign(
+        source, target_district_id, created_by=identity.user_id, created_by_name=identity.display_name
+    )
     session.add(forked)
     await session.commit()
     return _redirect(f"/campaigns/{forked.id}")

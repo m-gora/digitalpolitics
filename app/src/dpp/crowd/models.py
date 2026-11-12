@@ -48,6 +48,8 @@ class Questionnaire(Base):
         default=QuestionnaireStatus.DRAFT,
     )
     created_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Non-authoritative display name captured at write time; see arch-01.
+    created_by_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     campaign_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True
     )

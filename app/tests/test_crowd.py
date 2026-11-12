@@ -148,6 +148,40 @@ async def test_creator_can_preview_draft_without_storage(client, db_session):
     assert 'action="/crowd/api/' not in preview.text
 
 
+async def test_questionnaire_write_stores_the_display_name(client):
+    """Questionnaire create + duplicate carry the acting user's display name."""
+    headers = auth_headers("creator-2", set(), display_name="Anna Berg")
+    created = await client.post(
+        "/crowd/questionnaires/new",
+        content=urlencode([
+            ("title", "Namensfragebogen"),
+            ("intro", ""),
+            ("prompt", "Was wünschst du dir?"),
+            ("question_type", "text"),
+            ("options", ""),
+            ("required", "0"),
+        ]),
+        headers={**headers, "Content-Type": "application/x-www-form-urlencoded"},
+        follow_redirects=False,
+    )
+    assert created.status_code == 303, created.text
+    qid = created.headers["location"].rsplit("/", 1)[1]
+
+    listing = await client.get("/crowd/questionnaires", headers=headers)
+    assert "Erstellt von Anna Berg" in listing.text
+    assert "Erstellt von creator-2" not in listing.text
+
+    duplicated = await client.post(
+        f"/crowd/questionnaires/{qid}/duplicate", headers=headers, follow_redirects=False
+    )
+    assert duplicated.status_code == 303, duplicated.text
+    clone_id = duplicated.headers["location"].rsplit("/", 1)[1]
+    clone_detail = await client.get(f"/crowd/questionnaires/{clone_id}", headers=headers)
+    assert "(Kopie)" in clone_detail.text
+    listing = await client.get("/crowd/questionnaires", headers=headers)
+    assert listing.text.count("Erstellt von Anna Berg") == 2
+
+
 async def test_authenticated_user_can_create_edit_and_activate_questionnaire(client):
     headers = auth_headers("creator", set())
     created = await client.post(

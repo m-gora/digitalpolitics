@@ -13,3 +13,4 @@ The backend does not compute inheritance. It only checks whether the target dist
 - The backend's authorization check stays a simple list-membership check.
 - Changes to a user's district assignment or to the hierarchy tree require the auth layer to recompute the expanded list on next login/token refresh.
 - Read access is unaffected by this header: per arch-02, read access is global for any authenticated user.
+- Header names are env-configurable (see arch-01) so the identity layer can be swapped (e.g. from Caddy to k3s/Traefik) without code changes; the display-name chain also reads the env-configurable `X-Auth-Request-*` headers.

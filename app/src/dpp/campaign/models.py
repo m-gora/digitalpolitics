@@ -99,6 +99,8 @@ class Campaign(Base):
         default=CampaignStatus.DRAFT,
     )
     created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Non-authoritative display name captured at write time; see arch-01.
+    created_by_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Zieldefinition
     thema: Mapped[str | None] = mapped_column(Text, nullable=True)
