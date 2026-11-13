@@ -18,11 +18,13 @@
 // X-Auth-Request-Groups (see k8s/app/configmap.yaml); the app expands each
 // slug to the district and its descendants (adr-03).
 //
-// Guard: app_metadata is account-level, so this Action would otherwise stamp
-// the claim into tokens of EVERY app in the tenant. event.client_id scopes it
-// to the dpp client only. (The client ID is a public identifier, not a secret.)
-
-const DPP_CLIENT_ID = "1hZvL0naqKiY6OQc4XTBVuBhZTpKkCDe";
+// NOTE: deliberately NOT guarded by event.client_id. A client_id guard was
+// tried but didn't fire correctly (cause unclear), so the claim is stamped
+// into tokens of every app in the tenant. Harmless for other apps — the
+// claim is namespaced (https://dpp/groups) and they ignore it — but if this
+// tenant ever hosts apps that must not see Gliederung memberships, re-add a
+// guard: `if (event.client_id !== "<dpp client id>") return;` and verify the
+// constant against Applications → dpp → Client ID.
 
 /**
  * Handler that will be called during the execution of a Login flow.
@@ -31,9 +33,6 @@ const DPP_CLIENT_ID = "1hZvL0naqKiY6OQc4XTBVuBhZTpKkCDe";
  * @param {LoginAPI} api - Methods and utilities to help change the behavior of the flow.
  */
 exports.onExecutePostLogin = async (event, api) => {
-  if (event.client_id !== DPP_CLIENT_ID) {
-    return;
-  }
   const gliederungen = event.user.app_metadata?.gliederungen;
   if (!gliederungen || (Array.isArray(gliederungen) && gliederungen.length === 0)) {
     return;
