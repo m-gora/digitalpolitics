@@ -23,7 +23,7 @@ spec:
       # flux apply on an existing Job. alembic upgrade head is idempotent.
       initContainers:
         - name: migrate
-          image: ghcr.io/m-gora/digital-politics-platform:v1.2.0
+          image: ghcr.io/m-gora/digitalpolitics:v1.2.1
           imagePullPolicy: IfNotPresent
           command: ["alembic", "upgrade", "head"]
           workingDir: /app
@@ -35,7 +35,7 @@ spec:
                   key: DATABASE_URL
       containers:
         - name: dpp
-          image: ghcr.io/m-gora/digital-politics-platform:v1.2.0
+          image: ghcr.io/m-gora/digitalpolitics:v1.2.1
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
