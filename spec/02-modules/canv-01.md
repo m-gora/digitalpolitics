@@ -10,7 +10,7 @@ Each level of hierarchy can have an unbounded numbers of campaign canvasses.
 However the number of hierarchies shall be flexible to allow a frictionless scale out later on: the hierarchy is an arbitrary-depth tree of party units ("Gliederungen"), not a fixed three-level model. LV/BV/OV above is one example instance, not the schema.
 
 ## Hierarchy administration
-Any authenticated user may create a new root-level Gliederung. Creating a child Gliederung, renaming a Gliederung, or deleting one requires district write access to its parent or to the affected Gliederung, respectively. Only leaf Gliederungen may be deleted, and deletion is blocked while campaigns or initiatives still reference the Gliederung. The districts page provides these management actions.
+The Gliederung tree is deployment configuration (see arch-02), not user-editable application data: districts are defined in `config/gliederungen.yaml` and deployed via ConfigMap; there is no districts page or district management UI in the app.
 
 ## Initiatives
 Grouping of campaigns shall also be possible into an initiative. Multiple campaigns can align around a shared political narrative and act as a stronger, coordinated unit.
