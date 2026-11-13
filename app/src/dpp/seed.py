@@ -9,6 +9,7 @@ import asyncio
 
 from sqlalchemy import select
 
+from dpp.campaign import coherence
 from dpp.campaign.models import (
     Campaign,
     CampaignStatus,
@@ -16,6 +17,7 @@ from dpp.campaign.models import (
     InitiativeCampaign,
     Retrospective,
 )
+from dpp.config import get_settings
 from dpp.db import async_session_factory
 
 # Gliederung slugs — must exist in config/gliederungen.yaml (arch-02).
@@ -116,6 +118,17 @@ async def seed() -> None:
         print("Seed data created.")
         print("Dev personas (see /_dev/impersonate): Anna Berg (LV Berlin), Jonas Krüger (BV F-K),")
         print("Mira Noll (OV Kreuzberg), Peter Sailer (BV Mitte).")
+
+        # Score the demo initiative right away (canv-01), so the coherence
+        # widget isn't empty until the first edit triggers a recompute.
+        # Best effort: without TYPESAFE_API_KEY the app scores on first edit.
+        if get_settings().typesafe_api_key:
+            initiative = await session.get(Initiative, bauen_wohnen.id)
+            if await coherence.recompute_and_publish(session, initiative):
+                print("Initiative coherence scored.")
+        else:
+            print("TYPESAFE_API_KEY not set; coherence scores appear after the first edit")
+            print("(or run: python -m dpp.campaign.backfill_coherence).")
 
 
 if __name__ == "__main__":
