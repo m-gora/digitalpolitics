@@ -15,7 +15,7 @@
 - **Scrubbing:** a deterministic server-side regex scrubber runs on all free text before storage and replaces matches with placeholders such as `[E-Mail]`, `[Telefon]`, `[Adresse]`.
   - It handles `+49`, `0049` and `0xx` phone formats and German street suffixes (`-str.`, `-straße`, `-weg`, `-platz`, ...).
   - **Known limitation:** person names are not detected. The start screen and the text input tell respondents not to give names. See adr-07.
-- **Privacy notice**, shown before the first answer and not skippable: answers are anonymous, the location is saved with the answer, and voice input (when available) is sent to OpenAI for transcription. Audio is not stored by this application; OpenAI may retain it for up to 30 days for abuse monitoring. Final German wording is to be reviewed by the data-protection owner.
+- **Privacy notice**, shown before the first answer and not skippable: answers are anonymous, the location is saved with the answer, and voice input (when available) is sent to Google (Gemini) for transcription. Audio is not stored by this application. How Google's API processes the audio (retention/training per the applicable Google terms) must be reviewed and worded by the data-protection owner.
 - **Retention and legal basis** are deferred, consistent with canv-02. Until specified, no automatic deletion exists.
 
 ## Validation on ingest

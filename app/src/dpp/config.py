@@ -13,10 +13,10 @@ class Settings(BaseSettings):
     ai_provider: Literal["openai", "google"] = "openai"
     openai_api_key: str | None = None
     openai_text_model: str = "gpt-4o-mini"
-    openai_transcribe_model: str = "gpt-4o-transcribe"
-    map_tile_url: str = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
     google_api_key: str | None = None
     google_text_model: str = "gemini-3.5-flash-lite"
+    google_transcribe_model: str = "gemini-3.5-flash-lite"
+    map_tile_url: str = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
     typesafe_api_key: str | None = None
     typesafe_model: str = "jev-latest"
 

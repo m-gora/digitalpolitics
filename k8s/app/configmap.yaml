@@ -4,7 +4,7 @@ AI_PROVIDER=google
 GOOGLE_EMBEDDING_MODEL=
 GOOGLE_TEXT_MODEL=gemini-3.5-flash-lite
 OPENAI_TEXT_MODEL=gpt-4o-mini
-OPENAI_TRANSCRIBE_MODEL=gpt-4o-transcribe
+GOOGLE_TRANSCRIBE_MODEL=gemini-3.5-flash-lite
 TYPESAFE_MODEL=jev-latest
 MAP_TILE_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
 

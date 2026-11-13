@@ -17,4 +17,4 @@ The prototype sends campaign-planning text to external AI services for these nar
 - The summary feature expands the fields processed externally beyond the three narrative fields used for coherence scoring. Data Harvest remains excluded.
 - This exception does not extend to other modules; the street-feedback module's PII scrubbing (arch-04) remains a separate, stricter requirement.
 
-- **Exception (adr-07):** the crowdsourcing module may send citizen voice audio to OpenAI for transcription only. Answers, transcripts and locations are never sent.
+- **Exception (adr-07):** the crowdsourcing module may send citizen voice audio to Google (Gemini) for transcription only. Answers, transcripts and locations are never sent.

@@ -348,7 +348,7 @@ async def respondent_app(token: str, request: Request, session: AsyncSession = D
         raise HTTPException(404, "Umfrage nicht gefunden.")
     collectable = service.is_collectable(q)
     question_data = [{"id": str(item.id), "type": item.question_type, "required": item.required} for item in q.questions] if collectable else []
-    return templates.TemplateResponse(request, "crowd/respondent.html", {"questionnaire": q, "collectable": collectable, "transcribe_enabled": bool(get_settings().openai_api_key), "question_data": question_data, "preview": False})
+    return templates.TemplateResponse(request, "crowd/respondent.html", {"questionnaire": q, "collectable": collectable, "transcribe_enabled": bool(get_settings().google_api_key), "question_data": question_data, "preview": False})
 
 
 @public_router.get("/r/{token}/manifest.webmanifest")
