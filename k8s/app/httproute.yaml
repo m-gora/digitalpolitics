@@ -12,9 +12,14 @@ metadata:
   name: dpp
   namespace: dpp
   labels:
+    # Label filter: no-dash prefix on purpose (matches the cluster's
+    # --label-filter in cluster-config/external-dns.yaml).
     externaldns.kubernetes.io/enabled: "true"
-    externaldns.kubernetes.io/cloudflare-proxied: "true"
-    externaldns.kubernetes.io/cloudflare-custom-hostname: dpp.cloud.marcodoes.tech
+  annotations:
+    # Annotations: dash prefix (external-dns's default AnnotationPrefix — the
+    # no-dash label spelling does NOT work for annotations).
+    external-dns.kubernetes.io/cloudflare-proxied: "true"
+    external-dns.kubernetes.io/cloudflare-custom-hostname: dpp.cloud.marcodoes.tech
 spec:
   parentRefs:
     - name: cluster

@@ -25,6 +25,5 @@ resources:
   - deployment.yaml
   - middleware-forwardauth.yaml
   - httproute.yaml
-  - httproute-healthz.yaml
 generatorOptions:
   disableNameSuffixHash: false
