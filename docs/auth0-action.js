@@ -17,6 +17,12 @@
 // OAUTH2_PROXY_OIDC_GROUPS_CLAIM=https://dpp/groups and relays it as
 // X-Auth-Request-Groups (see k8s/app/configmap.yaml); the app expands each
 // slug to the district and its descendants (adr-03).
+//
+// Guard: app_metadata is account-level, so this Action would otherwise stamp
+// the claim into tokens of EVERY app in the tenant. event.client_id scopes it
+// to the dpp client only. (The client ID is a public identifier, not a secret.)
+
+const DPP_CLIENT_ID = "1hZvL0naqKiY6OQc4XTBVuBhZTpKkCDe";
 
 /**
  * Handler that will be called during the execution of a Login flow.
@@ -25,6 +31,9 @@
  * @param {LoginAPI} api - Methods and utilities to help change the behavior of the flow.
  */
 exports.onExecutePostLogin = async (event, api) => {
+  if (event.client_id !== DPP_CLIENT_ID) {
+    return;
+  }
   const gliederungen = event.user.app_metadata?.gliederungen;
   if (!gliederungen || (Array.isArray(gliederungen) && gliederungen.length === 0)) {
     return;
