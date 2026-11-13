@@ -69,7 +69,8 @@ def test_no_identity_without_user_id():
 
 def test_groups_claim_expands_to_district_scopes():
     # "lv-berlin" inherits bv-mitte and ov-wedding per the arch-02 rule
-    # (as configured in config/gliederungen.yaml); "all" sees everything.
+    # (as configured in config/gliederungen.yaml); "all" sees everything,
+    # including the bundesverband root.
     identity = parse_identity(
         _request({"X-User-Id": "sub-123", "X-Auth-Request-Groups": "lv-berlin"})
     )
@@ -78,12 +79,12 @@ def test_groups_claim_expands_to_district_scopes():
         {"lv-berlin", "bv-friedrichshain-kreuzberg", "bv-mitte", "ov-kreuzberg", "ov-friedrichshain", "ov-wedding"}
     )
     assert identity.has_write_access("ov-wedding")
-    assert not identity.has_write_access("nonexistent")
+    assert not identity.has_write_access("bundesverband")
 
     all_identity = parse_identity(_request({"X-User-Id": "sub-123", "X-Auth-Request-Groups": "all"}))
     assert all_identity is not None
     assert all_identity.district_scopes == frozenset(
-        {"lv-berlin", "bv-friedrichshain-kreuzberg", "bv-mitte", "ov-kreuzberg", "ov-friedrichshain", "ov-wedding"}
+        {"bundesverband", "lv-berlin", "bv-friedrichshain-kreuzberg", "bv-mitte", "ov-kreuzberg", "ov-friedrichshain", "ov-wedding"}
     )
 
     unknown_identity = parse_identity(

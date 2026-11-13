@@ -7,8 +7,11 @@
 # access checks. Never rename or delete a slug once data references it —
 # add new districts freely, keep old ones as long as data points at them.
 gliederungen:
+  - slug: bundesverband
+    name: Bundesverband
   - slug: lv-berlin
     name: LV Berlin
+    parent: bundesverband
   - slug: bv-friedrichshain-kreuzberg
     name: BV Friedrichshain-Kreuzberg
     parent: lv-berlin

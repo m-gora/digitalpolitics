@@ -1,14 +1,9 @@
-# Gliederung configuration — single source of truth for the party unit
-# hierarchy (arch-02). Injected into the k3s deployment via ConfigMap
-# (DPP_GLIEDERUNGEN_FILE); local development and tests use this file directly.
-#
-# Slugs are stable identifiers: they appear in the users' groups claim
-# (Auth0 app_metadata.gliederungen), in campaigns/initiatives, and in
-# access checks. Never rename or delete a slug once data references it —
-# add new districts freely, keep old ones as long as data points at them.
 gliederungen:
+  - slug: bundesverband
+    name: Bundesverband
   - slug: lv-berlin
     name: LV Berlin
+    parent: bundesverband
   - slug: bv-friedrichshain-kreuzberg
     name: BV Friedrichshain-Kreuzberg
     parent: lv-berlin

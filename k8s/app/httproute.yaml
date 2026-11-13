@@ -13,6 +13,8 @@ metadata:
   namespace: dpp
   labels:
     externaldns.kubernetes.io/enabled: "true"
+    externaldns.kubernetes.io/cloudflare-proxied: "true"
+    externaldns.kubernetes.io/cloudflare-custom-hostname: dpp.cloud.marcodoes.tech
 spec:
   parentRefs:
     - name: cluster
