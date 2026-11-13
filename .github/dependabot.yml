@@ -1,21 +1,9 @@
 version: 2
 updates:
-  # Image-tag bumps for the k8s manifests. Both trees pin the same image;
-  # the group keeps their bumps in one PR so deployment and migration job
-  # never diverge. NOTE: verify dependabot's docker ecosystem actually reads
-  # image entries in these manifests (documented for Dockerfiles/compose);
-  # if it does not produce PRs, switch to renovate (kustomize-native).
+  # Image-tag bumps for the k8s manifests (initContainer + app container pin
+  # the same image, so they can never diverge).
   - package-ecosystem: docker
     directory: "/k8s/app"
-    schedule:
-      interval: weekly
-    groups:
-      dpp-image:
-        applies-to: version-updates
-        patterns:
-          - "*"
-  - package-ecosystem: docker
-    directory: "/k8s/migrations"
     schedule:
       interval: weekly
     groups:

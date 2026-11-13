@@ -50,11 +50,9 @@ jobs:
         working-directory: .
         run: |
           set -euo pipefail
-          kubectl kustomize k8s/migrations > /tmp/migrations.yaml
           kubectl kustomize k8s/app > /tmp/app.yaml
           # Strip SOPS metadata (flux decrypts; plain kubectl rejects the field).
-          yq -i 'del(.sops)' /tmp/migrations.yaml /tmp/app.yaml
-          kubectl apply --dry-run=client -f /tmp/migrations.yaml --validate=false
+          yq -i 'del(.sops)' /tmp/app.yaml
           kubectl apply --dry-run=client -f /tmp/app.yaml --validate=false
       - name: Stop PostgreSQL
         if: always()

@@ -18,10 +18,23 @@ spec:
       labels:
         app: dpp
     spec:
+      # Migrations run as an initContainer instead of a standalone Job:
+      # k8s Jobs are immutable, so a dependabot image bump would fail the
+      # flux apply on an existing Job. alembic upgrade head is idempotent.
+      initContainers:
+        - name: migrate
+          image: ghcr.io/m-gora/digital-politics-platform:v1.2.0
+          imagePullPolicy: IfNotPresent
+          command: ["alembic", "upgrade", "head"]
+          workingDir: /app
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: dpp-db
+                  key: DATABASE_URL
       containers:
         - name: dpp
-          # NOTE: keep the image tag in sync with
-          # k8s/migrations/migration-job.yaml; dependabot bumps both.
           image: ghcr.io/m-gora/digital-politics-platform:v1.2.0
           imagePullPolicy: IfNotPresent
           ports:
@@ -59,6 +72,10 @@ spec:
                   name: dpp-app
                   key: TYPESAFE_API_KEY
                   optional: true
+          volumeMounts:
+            - name: gliederungen
+              mountPath: /etc/dpp/gliederungen
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /healthz
@@ -116,3 +133,7 @@ spec:
               memory: 32Mi
             limits:
               memory: 128Mi
+      volumes:
+        - name: gliederungen
+          configMap:
+            name: dpp-gliederungen
