@@ -30,7 +30,7 @@ LINKABLE_CAMPAIGN_STATUSES = (CampaignStatus.DRAFT, CampaignStatus.REVIEW, Campa
 
 
 def _campaign_choices(current_campaign_id: uuid.UUID | None = None):
-    query = select(Campaign).options(selectinload(Campaign.district)).where(
+    query = select(Campaign).where(
         Campaign.status.in_(LINKABLE_CAMPAIGN_STATUSES)
     )
     if current_campaign_id is not None:
@@ -109,7 +109,7 @@ async def create_questionnaire(request: Request, session: AsyncSession = Depends
                 raise service.CrowdError("Kampagne nicht gefunden.")
             if campaign.status not in LINKABLE_CAMPAIGN_STATUSES:
                 raise service.CrowdError("Mit abgeschlossenen Kampagnen kann kein Fragebogen verknüpft werden.")
-            ensure_write_access(identity, campaign.district_id)
+            ensure_write_access(identity, campaign.district_slug)
             q.campaign_id = campaign.id
         session.add(q)
         await session.commit()
@@ -163,7 +163,7 @@ async def edit_questionnaire(qid: uuid.UUID, request: Request, session: AsyncSes
             if campaign and campaign.id != previous_campaign_id:
                 if campaign.status not in LINKABLE_CAMPAIGN_STATUSES:
                     raise service.CrowdError("Mit abgeschlossenen Kampagnen kann kein Fragebogen verknüpft werden.")
-                ensure_write_access(identity, campaign.district_id)
+                ensure_write_access(identity, campaign.district_slug)
             q.campaign_id = campaign.id if campaign else None
         await session.commit()
     except (service.CrowdError, ValueError) as exc:
@@ -191,7 +191,7 @@ async def activate_questionnaire(qid: uuid.UUID, session: AsyncSession = Depends
         campaign = await session.get(Campaign, q.campaign_id)
         if campaign is None:
             raise HTTPException(400, "Verknüpfte Kampagne nicht gefunden.")
-        ensure_write_access(identity, campaign.district_id)
+        ensure_write_access(identity, campaign.district_slug)
     try:
         service.activate(q, campaign)
     except service.CrowdError as exc:

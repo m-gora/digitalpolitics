@@ -8,7 +8,7 @@ from sqlalchemy import delete
 import dpp.campaign.coherence as coherence_module
 from dpp.campaign import events
 from dpp.campaign.models import Campaign, Initiative
-from tests.conftest import auth_headers, make_district
+from tests.conftest import auth_headers
 
 pytestmark = pytest.mark.asyncio
 
@@ -62,7 +62,7 @@ def typesafe(monkeypatch) -> FakeTypeSafe:
 async def test_similarity_inputs_exclude_operational_fields():
     campaign = Campaign(
         id=uuid.uuid4(),
-        district_id=uuid.uuid4(),
+        district_slug="bv-friedrichshain-kreuzberg",
         thema="Bezahlbares Wohnen",
         ziel="Mehr Wohnungen schaffen",
         storytelling="Stimmen aus dem Kiez",
@@ -88,8 +88,8 @@ async def test_similarity_inputs_exclude_operational_fields():
     }
 
 
-async def _create_campaign(client, district_id: str, headers: dict, thema: str, ziel: str) -> str:
-    resp = await client.post("/campaigns", data={"district_id": district_id}, headers=headers)
+async def _create_campaign(client, district_slug: str, headers: dict, thema: str, ziel: str) -> str:
+    resp = await client.post("/campaigns", data={"district_slug": district_slug}, headers=headers)
     campaign_id = resp.headers["location"].rsplit("/", 1)[-1]
     resp = await client.post(
         f"/campaigns/{campaign_id}/fields", data={"thema": thema, "ziel": ziel}, headers=headers
@@ -99,18 +99,15 @@ async def _create_campaign(client, district_id: str, headers: dict, thema: str, 
 
 
 async def test_initiative_accepts_campaigns_from_descendants_and_shows_member_districts(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    bv_fk = await make_district(db_session, "BV Friedrichshain-Kreuzberg", parent=berlin)
-    ov_kreuzberg = await make_district(db_session, "OV Kreuzberg", parent=bv_fk)
-    headers = auth_headers("anna", {str(berlin.id), str(bv_fk.id), str(ov_kreuzberg.id)})
+    headers = auth_headers("anna", ("lv-berlin",))
 
     resp = await client.post(
-        "/initiatives", data={"district_id": str(berlin.id), "name": "Bauen und Wohnen"}, headers=headers
+        "/initiatives", data={"district_slug": "lv-berlin", "name": "Bauen und Wohnen"}, headers=headers
     )
     initiative_id = resp.headers["location"].rsplit("/", 1)[-1]
 
-    bv_campaign = await _create_campaign(client, str(bv_fk.id), headers, "Mietendeckel", "Mehr bezahlbarer Wohnraum")
-    ov_campaign = await _create_campaign(client, str(ov_kreuzberg.id), headers, "Leerstand melden", "Wohnraum nutzen")
+    bv_campaign = await _create_campaign(client, "bv-friedrichshain-kreuzberg", headers, "Mietendeckel", "Mehr bezahlbarer Wohnraum")
+    ov_campaign = await _create_campaign(client, "ov-kreuzberg", headers, "Leerstand melden", "Wohnraum nutzen")
 
     for campaign_id in (bv_campaign, ov_campaign):
         resp = await client.post(
@@ -132,17 +129,13 @@ async def test_initiative_accepts_campaigns_from_descendants_and_shows_member_di
 
 
 async def test_initiative_rejects_campaign_from_sibling_branch(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    bv_fk = await make_district(db_session, "BV Friedrichshain-Kreuzberg", parent=berlin)
-    ov_kreuzberg = await make_district(db_session, "OV Kreuzberg", parent=bv_fk)
-    bv_mitte = await make_district(db_session, "BV Mitte", parent=berlin)
-    headers = auth_headers("anna", {str(berlin.id), str(bv_fk.id), str(ov_kreuzberg.id), str(bv_mitte.id)})
+    headers = auth_headers("anna", ("lv-berlin", "bv-mitte"))
 
     resp = await client.post(
-        "/initiatives", data={"district_id": str(bv_fk.id), "name": "Kiezwohnen"}, headers=headers
+        "/initiatives", data={"district_slug": "bv-friedrichshain-kreuzberg", "name": "Kiezwohnen"}, headers=headers
     )
     initiative_id = resp.headers["location"].rsplit("/", 1)[-1]
-    sibling_campaign = await _create_campaign(client, str(bv_mitte.id), headers, "Mitte Wohnen", "Ziel Mitte")
+    sibling_campaign = await _create_campaign(client, "bv-mitte", headers, "Mitte Wohnen", "Ziel Mitte")
 
     resp = await client.post(
         f"/initiatives/{initiative_id}/members", data={"campaign_id": sibling_campaign}, headers=headers
@@ -151,14 +144,13 @@ async def test_initiative_rejects_campaign_from_sibling_branch(client, db_sessio
 
 
 async def test_initiative_edit_and_delete_preserve_campaigns(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("coordinator", {str(berlin.id)})
-    outsider = auth_headers("outsider", set())
-    campaign_id = await _create_campaign(client, str(berlin.id), headers, "Wohnen", "Bezahlbar wohnen")
+    headers = auth_headers("coordinator", ("lv-berlin",))
+    outsider = auth_headers("outsider", ())
+    campaign_id = await _create_campaign(client, "lv-berlin", headers, "Wohnen", "Bezahlbar wohnen")
 
     create_response = await client.post(
         "/initiatives",
-        data={"district_id": str(berlin.id), "name": "Wohnen", "description": "Gemeinsame Botschaft"},
+        data={"district_slug": "lv-berlin", "name": "Wohnen", "description": "Gemeinsame Botschaft"},
         headers=headers,
     )
     initiative_id = create_response.headers["location"].rsplit("/", 1)[-1]
@@ -199,12 +191,11 @@ async def test_initiative_edit_and_delete_preserve_campaigns(client, db_session)
 
 
 async def test_initiative_create_edit_and_delete_are_published(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("coordinator", {str(berlin.id)})
+    headers = auth_headers("coordinator", ("lv-berlin",))
     subscriber = events.canvas_channel.subscribe()
     try:
         created = await client.post(
-            "/initiatives", data={"district_id": str(berlin.id), "name": "Wohnen"}, headers=headers
+            "/initiatives", data={"district_slug": "lv-berlin", "name": "Wohnen"}, headers=headers
         )
         initiative_id = created.headers["location"].rsplit("/", 1)[-1]
         event = subscriber.get_nowait()
@@ -231,10 +222,10 @@ async def test_initiative_create_edit_and_delete_are_published(client, db_sessio
         events.canvas_channel.unsubscribe(subscriber)
 
 
-async def _create_initiative(client, district_id: str, headers: dict, name: str, description: str = "") -> str:
+async def _create_initiative(client, district_slug: str, headers: dict, name: str, description: str = "") -> str:
     resp = await client.post(
         "/initiatives",
-        data={"district_id": district_id, "name": name, "description": description},
+        data={"district_slug": district_slug, "name": name, "description": description},
         headers=headers,
     )
     return resp.headers["location"].rsplit("/", 1)[-1]
@@ -248,12 +239,11 @@ async def _add_member(client, initiative_id: str, campaign_id: str, headers: dic
 
 
 async def test_initiative_shows_separate_domain_and_narrative_scores(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Bauen und Wohnen")
+    headers = auth_headers("anna", ("lv-berlin",))
+    initiative_id = await _create_initiative(client, "lv-berlin", headers, "Bauen und Wohnen")
 
-    c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen Kampagne 1", "Mehr wohnen schaffen")
-    c2 = await _create_campaign(client, str(berlin.id), headers, "Wohnen Kampagne 2", "Auch mehr wohnen schaffen")
+    c1 = await _create_campaign(client, "lv-berlin", headers, "Wohnen Kampagne 1", "Mehr wohnen schaffen")
+    c2 = await _create_campaign(client, "lv-berlin", headers, "Wohnen Kampagne 2", "Auch mehr wohnen schaffen")
     await _add_member(client, initiative_id, c1, headers)
     await _add_member(client, initiative_id, c2, headers)
 
@@ -266,7 +256,7 @@ async def test_initiative_shows_separate_domain_and_narrative_scores(client, db_
     assert "Ausreißer-Kandidat</span>" not in resp.text
 
     # A third, thematically unrelated campaign lowers both scores and becomes the outlier candidate.
-    c3 = await _create_campaign(client, str(berlin.id), headers, "Verkehr Kampagne", "Weniger Autos im Kiez")
+    c3 = await _create_campaign(client, "lv-berlin", headers, "Verkehr Kampagne", "Weniger Autos im Kiez")
     await _add_member(client, initiative_id, c3, headers)
 
     resp = await client.get(f"/initiatives/{initiative_id}", headers=headers)
@@ -281,11 +271,10 @@ async def test_initiative_shows_separate_domain_and_narrative_scores(client, db_
 
 
 async def test_member_changes_and_recomputed_scores_are_published(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Bauen und Wohnen")
-    c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen Kampagne 1", "Mehr wohnen schaffen")
-    c2 = await _create_campaign(client, str(berlin.id), headers, "Wohnen Kampagne 2", "Auch mehr wohnen schaffen")
+    headers = auth_headers("anna", ("lv-berlin",))
+    initiative_id = await _create_initiative(client, "lv-berlin", headers, "Bauen und Wohnen")
+    c1 = await _create_campaign(client, "lv-berlin", headers, "Wohnen Kampagne 1", "Mehr wohnen schaffen")
+    c2 = await _create_campaign(client, "lv-berlin", headers, "Wohnen Kampagne 2", "Auch mehr wohnen schaffen")
 
     subscriber = events.canvas_channel.subscribe()
     try:
@@ -318,11 +307,10 @@ async def test_member_changes_and_recomputed_scores_are_published(client, db_ses
 
 
 async def test_membership_event_is_published_when_scoring_is_unavailable(client, db_session, typesafe):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Wohnen")
-    c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 1", "Mehr wohnen")
-    c2 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 2", "Mehr wohnen")
+    headers = auth_headers("anna", ("lv-berlin",))
+    initiative_id = await _create_initiative(client, "lv-berlin", headers, "Wohnen")
+    c1 = await _create_campaign(client, "lv-berlin", headers, "Wohnen 1", "Mehr wohnen")
+    c2 = await _create_campaign(client, "lv-berlin", headers, "Wohnen 2", "Mehr wohnen")
     await _add_member(client, initiative_id, c1, headers)
     typesafe.unavailable = True
 
@@ -338,12 +326,11 @@ async def test_membership_event_is_published_when_scoring_is_unavailable(client,
 
 
 async def test_domain_and_narrative_similarity_are_independent(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Mobilisierung")
+    headers = auth_headers("anna", ("lv-berlin",))
+    initiative_id = await _create_initiative(client, "lv-berlin", headers, "Mobilisierung")
 
-    c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen", "Menschen mobilisieren")
-    c2 = await _create_campaign(client, str(berlin.id), headers, "Verkehr", "Menschen mobilisieren")
+    c1 = await _create_campaign(client, "lv-berlin", headers, "Wohnen", "Menschen mobilisieren")
+    c2 = await _create_campaign(client, "lv-berlin", headers, "Verkehr", "Menschen mobilisieren")
     await _add_member(client, initiative_id, c1, headers)
     await _add_member(client, initiative_id, c2, headers)
 
@@ -355,12 +342,11 @@ async def test_domain_and_narrative_similarity_are_independent(client, db_sessio
 
 
 async def test_outlier_none_clear_marks_no_campaign(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Gemischt")
+    headers = auth_headers("anna", ("lv-berlin",))
+    initiative_id = await _create_initiative(client, "lv-berlin", headers, "Gemischt")
 
     for thema in ("Wohnen", "Verkehr", "Mobilisieren"):
-        campaign_id = await _create_campaign(client, str(berlin.id), headers, thema, thema)
+        campaign_id = await _create_campaign(client, "lv-berlin", headers, thema, thema)
         await _add_member(client, initiative_id, campaign_id, headers)
 
     detail = await client.get(f"/initiatives/{initiative_id}", headers=headers)
@@ -371,10 +357,9 @@ async def test_outlier_none_clear_marks_no_campaign(client, db_session):
 
 
 async def test_coherence_score_none_with_fewer_than_two_scorable_members(client, db_session, typesafe):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Solo")
-    c1 = await _create_campaign(client, str(berlin.id), headers, "Thema", "Ziel")
+    headers = auth_headers("anna", ("lv-berlin",))
+    initiative_id = await _create_initiative(client, "lv-berlin", headers, "Solo")
+    c1 = await _create_campaign(client, "lv-berlin", headers, "Thema", "Ziel")
     await _add_member(client, initiative_id, c1, headers)
 
     resp = await client.get(f"/initiatives/{initiative_id}", headers=headers)
@@ -383,11 +368,10 @@ async def test_coherence_score_none_with_fewer_than_two_scorable_members(client,
 
 
 async def test_remove_member_recomputes_coherence(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Bauen und Wohnen")
-    c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 1", "Ziel")
-    c2 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 2", "Ziel")
+    headers = auth_headers("anna", ("lv-berlin",))
+    initiative_id = await _create_initiative(client, "lv-berlin", headers, "Bauen und Wohnen")
+    c1 = await _create_campaign(client, "lv-berlin", headers, "Wohnen 1", "Ziel")
+    c2 = await _create_campaign(client, "lv-berlin", headers, "Wohnen 2", "Ziel")
     await _add_member(client, initiative_id, c1, headers)
     await _add_member(client, initiative_id, c2, headers)
 
@@ -402,16 +386,15 @@ async def test_remove_member_recomputes_coherence(client, db_session):
 
 
 async def test_unavailable_typesafe_keeps_previous_scores(client, db_session, typesafe):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Bauen und Wohnen")
-    c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 1", "Mehr wohnen")
-    c2 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 2", "Mehr wohnen")
+    headers = auth_headers("anna", ("lv-berlin",))
+    initiative_id = await _create_initiative(client, "lv-berlin", headers, "Bauen und Wohnen")
+    c1 = await _create_campaign(client, "lv-berlin", headers, "Wohnen 1", "Mehr wohnen")
+    c2 = await _create_campaign(client, "lv-berlin", headers, "Wohnen 2", "Mehr wohnen")
     await _add_member(client, initiative_id, c1, headers)
     await _add_member(client, initiative_id, c2, headers)
 
     typesafe.unavailable = True
-    c3 = await _create_campaign(client, str(berlin.id), headers, "Verkehr 3", "Weniger Autos")
+    c3 = await _create_campaign(client, "lv-berlin", headers, "Verkehr 3", "Weniger Autos")
     await _add_member(client, initiative_id, c3, headers)
 
     resp = await client.get(f"/initiatives/{initiative_id}", headers=headers)
@@ -419,11 +402,10 @@ async def test_unavailable_typesafe_keeps_previous_scores(client, db_session, ty
 
 
 async def test_campaign_edit_and_initiative_edit_trigger_rescoring(client, db_session, typesafe):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Wohnen", "Alt")
-    c1 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 1", "Mehr wohnen")
-    c2 = await _create_campaign(client, str(berlin.id), headers, "Wohnen 2", "Mehr wohnen")
+    headers = auth_headers("anna", ("lv-berlin",))
+    initiative_id = await _create_initiative(client, "lv-berlin", headers, "Wohnen", "Alt")
+    c1 = await _create_campaign(client, "lv-berlin", headers, "Wohnen 1", "Mehr wohnen")
+    c2 = await _create_campaign(client, "lv-berlin", headers, "Wohnen 2", "Mehr wohnen")
     await _add_member(client, initiative_id, c1, headers)
     await _add_member(client, initiative_id, c2, headers)
     typesafe.calls.clear()
@@ -448,11 +430,10 @@ async def test_campaign_edit_and_initiative_edit_trigger_rescoring(client, db_se
 
 
 async def test_deleting_outlier_campaign_clears_outlier(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    initiative_id = await _create_initiative(client, str(berlin.id), headers, "Bauen und Wohnen")
+    headers = auth_headers("anna", ("lv-berlin",))
+    initiative_id = await _create_initiative(client, "lv-berlin", headers, "Bauen und Wohnen")
     campaign_ids = [
-        await _create_campaign(client, str(berlin.id), headers, thema, "Ziel")
+        await _create_campaign(client, "lv-berlin", headers, thema, "Ziel")
         for thema in ("Wohnen 1", "Wohnen 2", "Verkehr 3")
     ]
     for campaign_id in campaign_ids:

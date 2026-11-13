@@ -2,9 +2,10 @@
 
 There is no real forward-auth proxy in local development. This module lets a
 developer pick a persona from a small fixed list and fabricates the same
-X-User-Id / X-User-Roles / X-District-Scopes headers a real proxy would send,
-plus the X-Auth-Request-Preferred-Username / X-Auth-Request-Email headers that
-oauth2-proxy relays in production (display-name source; see arch-01, adr-03).
+X-User-Id header a real proxy would send, plus the X-Auth-Request-Groups /
+X-Auth-Request-Preferred-Username / X-Auth-Request-Email headers that
+oauth2-proxy relays in production (groups-claim source for district scopes and
+display-name source; see arch-01, adr-03, dpp.gliederungen).
 It is only ever wired up when APP_ENV=development
 (see dpp.main); it must never run in a real deployment, since it would let
 any client set its own identity.
@@ -18,11 +19,10 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from dpp.auth.headers import (
-    DISTRICT_SCOPES_HEADER,
     USER_EMAIL_HEADER,
+    USER_GROUPS_HEADER,
     USER_ID_HEADER,
     USER_NAME_HEADER,
-    USER_ROLES_HEADER,
 )
 
 IMPERSONATION_COOKIE = "dpp_dev_identity"
@@ -32,44 +32,45 @@ IMPERSONATION_COOKIE = "dpp_dev_identity"
 class DevPersona:
     id: str
     label: str
-    anchor_district_name: str
-    roles: tuple[str, ...] = ("member",)
+    # Gliederung group from the user's Auth0 profile (app_metadata.gliederungen);
+    # a slug or "all". Expanded to district scopes by dpp.auth.headers, exactly
+    # like the production groups claim (arch-02 inheritance rule).
+    group: str
     email: str = ""
     name: str = ""
 
 
-# Matches the seed data in dpp.seed. Each persona is anchored at a district;
-# their effective X-District-Scopes is that district + all its descendants
-# (see services.hierarchy.expand_district_scope), demonstrating the
-# hierarchical inheritance rule from arch-02. The name/email fields mirror
-# the Auth0 claims oauth2-proxy relays in production, so the display-name
-# fallback chain is exercised identically in dev.
+# Matches the seed data in dpp.seed. Each persona carries the Gliederung group
+# they'd have in Auth0; the same expansion code path as production exercises
+# the hierarchical inheritance rule from arch-02. The name/email fields mirror
+# the Auth0 claims oauth2-proxy relays, so the display-name fallback chain is
+# exercised identically in dev.
 DEV_PERSONAS: list[DevPersona] = [
     DevPersona(
         id="anna",
         label="Anna Berg — LV Berlin",
-        anchor_district_name="LV Berlin",
+        group="lv-berlin",
         name="Anna Berg",
         email="anna@example.dev",
     ),
     DevPersona(
         id="jonas",
         label="Jonas Krüger — BV Friedrichshain-Kreuzberg",
-        anchor_district_name="BV Friedrichshain-Kreuzberg",
+        group="bv-friedrichshain-kreuzberg",
         name="Jonas Krüger",
         email="jonas@example.dev",
     ),
     DevPersona(
         id="mira",
         label="Mira Noll — OV Kreuzberg",
-        anchor_district_name="OV Kreuzberg",
+        group="ov-kreuzberg",
         name="Mira Noll",
         email="mira@example.dev",
     ),
     DevPersona(
         id="peter",
         label="Peter Sailer — BV Mitte",
-        anchor_district_name="BV Mitte",
+        group="bv-mitte",
         name="Peter Sailer",
         email="peter@example.dev",
     ),
@@ -83,15 +84,13 @@ def _serializer(secret: str) -> URLSafeSerializer:
 def encode_identity_cookie(
     secret: str,
     user_id: str,
-    roles: tuple[str, ...],
-    district_scopes: set[str],
+    groups: tuple[str, ...],
     name: str = "",
     email: str = "",
 ) -> str:
     payload = {
         "user_id": user_id,
-        "roles": list(roles),
-        "district_scopes": sorted(district_scopes),
+        "groups": list(groups),
         "name": name,
         "email": email,
     }
@@ -137,8 +136,7 @@ class DevImpersonationMiddleware:
 
         if identity_payload:
             headers[USER_ID_HEADER] = identity_payload["user_id"]
-            headers[USER_ROLES_HEADER] = ",".join(identity_payload["roles"])
-            headers[DISTRICT_SCOPES_HEADER] = ",".join(identity_payload["district_scopes"])
+            headers[USER_GROUPS_HEADER] = ",".join(identity_payload["groups"])
             if identity_payload.get("name"):
                 headers[USER_NAME_HEADER] = identity_payload["name"]
             if identity_payload.get("email"):

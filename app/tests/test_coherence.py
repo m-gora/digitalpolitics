@@ -11,7 +11,7 @@ pytestmark = pytest.mark.asyncio
 
 
 def make_campaign(thema: str | None = "Wohnen", ziel: str | None = "Mehr Wohnraum", **kwargs) -> Campaign:
-    return Campaign(id=uuid.uuid4(), district_id=uuid.uuid4(), thema=thema, ziel=ziel, **kwargs)
+    return Campaign(id=uuid.uuid4(), district_slug="lv-berlin", thema=thema, ziel=ziel, **kwargs)
 
 
 def make_initiative() -> Initiative:

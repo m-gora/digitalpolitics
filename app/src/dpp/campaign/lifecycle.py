@@ -26,12 +26,12 @@ class InvalidTransitionError(Exception):
 
 
 def create_campaign(
-    district_id: uuid.UUID,
+    district_slug: str,
     created_by: str | None = None,
     created_by_name: str | None = None,
 ) -> Campaign:
     return Campaign(
-        district_id=district_id,
+        district_slug=district_slug,
         created_by=created_by,
         created_by_name=created_by_name,
         status=CampaignStatus.DRAFT,
@@ -111,13 +111,13 @@ async def transition_status(
 
 def fork_campaign(
     source: Campaign,
-    target_district_id: uuid.UUID,
+    target_district_slug: str,
     created_by: str | None = None,
     created_by_name: str | None = None,
 ) -> Campaign:
     """Copy canvas field answers only into a new Draft campaign (canv-03).
 
-    Hierarchy placement (the caller-supplied target_district_id), initiative
+    Hierarchy placement (the caller-supplied target_district_slug), initiative
     membership, and any collected data are deliberately NOT copied. The
     creator fields record the *acting* user (the person performing the
     fork), never the source campaign's creator; provenance is preserved via
@@ -125,7 +125,7 @@ def fork_campaign(
     """
     fields = {f: getattr(source, f) for f in Campaign.GOAL_FIELDS + Campaign.AUDIENCE_FIELDS + Campaign.EXECUTION_FIELDS}
     return Campaign(
-        district_id=target_district_id,
+        district_slug=target_district_slug,
         created_by=created_by,
         created_by_name=created_by_name,
         status=CampaignStatus.DRAFT,

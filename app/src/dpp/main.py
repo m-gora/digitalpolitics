@@ -8,7 +8,6 @@ from dpp.auth.dependencies import get_identity
 from dpp.auth.headers import Identity
 from dpp.campaign.router import (
     campaigns_router,
-    districts_router,
     events_router,
     initiatives_router,
 )
@@ -31,7 +30,6 @@ async def healthcheck():
     """Unauthenticated liveness endpoint for the container runtime."""
     return {"status": "ok"}
 
-app.include_router(districts_router)
 app.include_router(campaigns_router)
 app.include_router(initiatives_router)
 app.include_router(events_router)

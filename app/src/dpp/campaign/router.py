@@ -10,21 +10,21 @@ from fastapi import (
     Request,
 )
 from fastapi.responses import RedirectResponse
-from sqlalchemy import exists, func, literal_column, or_, select
+from sqlalchemy import exists, false, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import contains_eager, selectinload
+from sqlalchemy.orm import selectinload
 from sse_starlette.sse import EventSourceResponse
 from starlette import status
 
+import dpp.gliederungen as gliederungen
 from dpp.auth.dependencies import ensure_write_access, get_identity
 from dpp.auth.headers import Identity
-from dpp.campaign import coherence, events, hierarchy, lifecycle, membership
+from dpp.campaign import coherence, events, lifecycle, membership
 from dpp.campaign.lifecycle import NARRATIVE_FIELDS, GatingError, InvalidTransitionError
 from dpp.campaign.membership import InitiativeMembershipError
 from dpp.campaign.models import (
     Campaign,
     CampaignStatus,
-    District,
     Initiative,
     InitiativeCampaign,
 )
@@ -33,127 +33,6 @@ from dpp.crowd.models import Questionnaire
 from dpp.crowd.models import Response as CrowdResponse
 from dpp.db import async_session_factory, get_session
 from dpp.templating import templates
-
-# --- Districts ---------------------------------------------------------
-
-districts_router = APIRouter(prefix="/districts", tags=["districts"])
-
-
-def _build_forest(districts: list) -> list[dict]:
-    by_id = {d.id: {"district": d, "children": []} for d in districts}
-    roots = []
-    for d in districts:
-        node = by_id[d.id]
-        if d.parent_id and d.parent_id in by_id:
-            by_id[d.parent_id]["children"].append(node)
-        else:
-            roots.append(node)
-    return roots
-
-
-@districts_router.get("")
-async def list_districts(
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-    identity: Identity = Depends(get_identity),
-):
-    districts = await hierarchy.get_tree(session)
-    forest = _build_forest(districts)
-    district_choices = _flatten_forest(forest)
-    error_messages = {
-        "empty_name": "Bitte gib einen Namen für die Gliederung ein.",
-        "has_children": "Untergliederungen zuerst einzeln löschen.",
-        "in_use": "Diese Gliederung ist noch mit Kampagnen oder Initiativen verknüpft und kann nicht gelöscht werden.",
-        "parent_not_found": "Die übergeordnete Gliederung wurde nicht gefunden.",
-    }
-    return templates.TemplateResponse(
-        request,
-        "districts/list.html",
-        {
-            "forest": forest,
-            "district_choices": district_choices,
-            "identity": identity,
-            "error_message": error_messages.get(request.query_params.get("error", "")),
-        },
-    )
-
-
-def _flatten_forest(nodes: list[dict], depth: int = 0) -> list[dict]:
-    flattened = []
-    for node in nodes:
-        flattened.append({"district": node["district"], "depth": depth})
-        flattened.extend(_flatten_forest(node["children"], depth + 1))
-    return flattened
-
-
-@districts_router.post("")
-async def create_district(
-    name: str = Form(...),
-    parent_id: str = Form(""),
-    session: AsyncSession = Depends(get_session),
-    identity: Identity = Depends(get_identity),
-):
-    name = name.strip()
-    if not name:
-        return _redirect("/districts?error=empty_name")
-
-    parent_uuid = None
-    if parent_id:
-        try:
-            parent_uuid = uuid.UUID(parent_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail="Invalid parent district ID.") from exc
-        ensure_write_access(identity, parent_uuid)
-
-    try:
-        await hierarchy.create_district(session, name, parent_uuid)
-    except hierarchy.DistrictNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    await session.commit()
-    return _redirect("/districts")
-
-
-@districts_router.post("/{district_id}/rename")
-async def rename_district(
-    district_id: uuid.UUID,
-    name: str = Form(...),
-    session: AsyncSession = Depends(get_session),
-    identity: Identity = Depends(get_identity),
-):
-    district = await session.get(District, district_id)
-    if district is None:
-        raise HTTPException(status_code=404, detail="District not found.")
-    ensure_write_access(identity, district.id)
-    name = name.strip()
-    if not name:
-        return _redirect("/districts?error=empty_name")
-
-    await hierarchy.rename_district(session, district, name)
-    await session.commit()
-    return _redirect("/districts")
-
-
-@districts_router.post("/{district_id}/delete")
-async def delete_district(
-    district_id: uuid.UUID,
-    session: AsyncSession = Depends(get_session),
-    identity: Identity = Depends(get_identity),
-):
-    district = await session.get(District, district_id)
-    if district is None:
-        raise HTTPException(status_code=404, detail="District not found.")
-    ensure_write_access(identity, district.id)
-
-    try:
-        await hierarchy.delete_district(session, district)
-    except hierarchy.DistrictHasChildrenError:
-        return _redirect("/districts?error=has_children")
-    except hierarchy.DistrictInUseError:
-        return _redirect("/districts?error=in_use")
-
-    await session.commit()
-    return _redirect("/districts")
-
 
 # --- Campaigns -----------------------------------------------------------
 
@@ -206,7 +85,7 @@ def _redirect(url: str) -> RedirectResponse:
 async def _get_campaign_or_404(session: AsyncSession, campaign_id: uuid.UUID) -> Campaign:
     result = await session.execute(
         select(Campaign)
-        .options(selectinload(Campaign.district), selectinload(Campaign.retrospective))
+        .options(selectinload(Campaign.retrospective))
         .where(Campaign.id == campaign_id)
     )
     campaign = result.scalar_one_or_none()
@@ -236,22 +115,24 @@ async def list_campaigns(
     else:
         campaign_status = None
 
-    query = (
-        select(Campaign)
-        .join(Campaign.district)
-        .options(contains_eager(Campaign.district))
-        .order_by(Campaign.created_at.desc())
-    )
+    query = select(Campaign).order_by(Campaign.created_at.desc())
     if campaign_status is not None:
         query = query.where(Campaign.status == campaign_status)
     if search_query:
         search_config = literal_column("'german'::regconfig")
         tsquery = func.plainto_tsquery(search_config, search_query)
-        district_search_vector = func.to_tsvector(search_config, District.name)
+        # District names come from the Gliederung config registry, so district
+        # search matches campaigns whose slug resolves to a matching district
+        # name (case-insensitive); see dpp.gliederungen.names_for_search.
+        matching_slugs = [
+            slug
+            for slug, name in gliederungen.get_registry().names_for_search().items()
+            if search_query.lower() in name
+        ]
         query = query.where(
             or_(
                 Campaign.search_vector.op("@@")(tsquery),
-                district_search_vector.op("@@")(tsquery),
+                Campaign.district_slug.in_(matching_slugs) if matching_slugs else false(),
             )
         )
 
@@ -277,26 +158,23 @@ async def list_campaigns(
 @campaigns_router.get("/new")
 async def new_campaign(
     request: Request,
-    session: AsyncSession = Depends(get_session),
     identity: Identity = Depends(get_identity),
 ):
-    result = await session.execute(select(District).order_by(District.name))
-    districts = list(result.scalars().all())
     return templates.TemplateResponse(
         request,
         "campaigns/new.html",
-        {"districts": districts, "identity": identity},
+        {"identity": identity},
     )
 
 
 @campaigns_router.post("/new")
 async def create_campaign_from_wizard(
-    district_id: uuid.UUID = Form(...),
+    district_slug: str = Form(...),
     session: AsyncSession = Depends(get_session),
     identity: Identity = Depends(get_identity),
 ):
-    ensure_write_access(identity, district_id)
-    campaign = lifecycle.create_campaign(district_id, created_by=identity.user_id, created_by_name=identity.display_name)
+    ensure_write_access(identity, district_slug)
+    campaign = lifecycle.create_campaign(district_slug, created_by=identity.user_id, created_by_name=identity.display_name)
     session.add(campaign)
     await session.commit()
     return _redirect(f"/campaigns/{campaign.id}/wizard/zieldefinition")
@@ -304,12 +182,12 @@ async def create_campaign_from_wizard(
 
 @campaigns_router.post("")
 async def create_campaign(
-    district_id: uuid.UUID = Form(...),
+    district_slug: str = Form(...),
     session: AsyncSession = Depends(get_session),
     identity: Identity = Depends(get_identity),
 ):
-    ensure_write_access(identity, district_id)
-    campaign = lifecycle.create_campaign(district_id, created_by=identity.user_id, created_by_name=identity.display_name)
+    ensure_write_access(identity, district_slug)
+    campaign = lifecycle.create_campaign(district_slug, created_by=identity.user_id, created_by_name=identity.display_name)
     session.add(campaign)
     await session.commit()
     return _redirect(f"/campaigns/{campaign.id}")
@@ -328,10 +206,8 @@ async def campaign_detail(
         q.id: await session.scalar(select(func.count(CrowdResponse.id)).where(CrowdResponse.questionnaire_id == q.id))
         for q in crowd_questionnaires
     }
-    can_write = identity.has_write_access(campaign.district_id)
+    can_write = identity.has_write_access(campaign.district_slug)
     initiatives = await membership.initiatives_for_campaign(session, campaign.id)
-    districts_result = await session.execute(select(District).order_by(District.name))
-    districts = list(districts_result.scalars().all())
     allowed_transitions = sorted(
         lifecycle.ALLOWED_TRANSITIONS.get(campaign.status, set()),
         key=lambda campaign_status: campaign_status.value,
@@ -352,7 +228,6 @@ async def campaign_detail(
             "identity": identity,
             "initiatives": initiatives,
             "allowed_transitions": allowed_transitions,
-            "districts": districts,
             "CampaignStatus": CampaignStatus,
             "wizard_step": wizard_step,
             "crowd_questionnaires": crowd_questionnaires,
@@ -371,7 +246,7 @@ async def _render_wizard(
 ):
     if step not in WIZARD_STEPS:
         raise HTTPException(status_code=404, detail="Unknown campaign wizard step")
-    if campaign.status != CampaignStatus.DRAFT or not identity.has_write_access(campaign.district_id):
+    if campaign.status != CampaignStatus.DRAFT or not identity.has_write_access(campaign.district_slug):
         return _redirect(f"/campaigns/{campaign.id}")
 
     if step == "zielgruppen-kanaele" and not campaign.audience_unlocked:
@@ -380,8 +255,6 @@ async def _render_wizard(
         next_step = "zielgruppen-kanaele" if campaign.audience_unlocked else "zieldefinition"
         return _redirect(f"/campaigns/{campaign.id}/wizard/{next_step}")
 
-    result = await session.execute(select(District).order_by(District.name))
-    districts = list(result.scalars().all())
     return templates.TemplateResponse(
         request,
         "campaigns/wizard.html",
@@ -392,7 +265,6 @@ async def _render_wizard(
             "steps": WIZARD_STEPS,
             "fields": WIZARD_FIELDS[step],
             "field_values": {name: getattr(campaign, name) or "" for name, _, _ in WIZARD_FIELDS[step]},
-            "districts": districts,
             "error": error,
         },
     )
@@ -420,7 +292,7 @@ async def save_campaign_wizard_step(
     identity: Identity = Depends(get_identity),
 ):
     campaign = await _get_campaign_or_404(session, campaign_id)
-    ensure_write_access(identity, campaign.district_id)
+    ensure_write_access(identity, campaign.district_slug)
     if campaign.status != CampaignStatus.DRAFT:
         raise HTTPException(status_code=400, detail="Only Draft campaigns can be edited.")
     if step not in WIZARD_STEPS:
@@ -504,7 +376,7 @@ async def update_fields(
     identity: Identity = Depends(get_identity),
 ):
     campaign = await _get_campaign_or_404(session, campaign_id)
-    ensure_write_access(identity, campaign.district_id)
+    ensure_write_access(identity, campaign.district_slug)
 
     form = await request.form()
     updates = {k: v for k, v in form.items() if isinstance(v, str) and v.strip() != ""}
@@ -535,7 +407,7 @@ async def transition(
     identity: Identity = Depends(get_identity),
 ):
     campaign = await _get_campaign_or_404(session, campaign_id)
-    ensure_write_access(identity, campaign.district_id)
+    ensure_write_access(identity, campaign.district_slug)
 
     try:
         target = CampaignStatus(to_status)
@@ -564,15 +436,15 @@ async def transition(
 @campaigns_router.post("/{campaign_id}/fork")
 async def fork(
     campaign_id: uuid.UUID,
-    target_district_id: uuid.UUID = Form(...),
+    target_district_slug: str = Form(...),
     session: AsyncSession = Depends(get_session),
     identity: Identity = Depends(get_identity),
 ):
     source = await _get_campaign_or_404(session, campaign_id)  # read is global, per arch-02
-    ensure_write_access(identity, target_district_id)
+    ensure_write_access(identity, target_district_slug)
 
     forked = lifecycle.fork_campaign(
-        source, target_district_id, created_by=identity.user_id, created_by_name=identity.display_name
+        source, target_district_slug, created_by=identity.user_id, created_by_name=identity.display_name
     )
     session.add(forked)
     await session.commit()
@@ -587,7 +459,7 @@ async def retrospective_view(
     identity: Identity = Depends(get_identity),
 ):
     campaign = await _get_campaign_or_404(session, campaign_id)
-    can_write = identity.has_write_access(campaign.district_id) and campaign.status != CampaignStatus.ARCHIVED
+    can_write = identity.has_write_access(campaign.district_slug) and campaign.status != CampaignStatus.ARCHIVED
     return templates.TemplateResponse(
         request,
         "campaigns/retrospective.html",
@@ -606,7 +478,7 @@ async def retrospective_update(
     identity: Identity = Depends(get_identity),
 ):
     campaign = await _get_campaign_or_404(session, campaign_id)
-    ensure_write_access(identity, campaign.district_id)
+    ensure_write_access(identity, campaign.district_slug)
 
     if campaign.status == CampaignStatus.ARCHIVED:
         raise HTTPException(status_code=400, detail="Archived campaigns are read-only.")
@@ -630,9 +502,7 @@ initiatives_router = APIRouter(prefix="/initiatives", tags=["initiatives"])
 
 
 async def _get_initiative_or_404(session: AsyncSession, initiative_id: uuid.UUID) -> Initiative:
-    result = await session.execute(
-        select(Initiative).options(selectinload(Initiative.district)).where(Initiative.id == initiative_id)
-    )
+    result = await session.execute(select(Initiative).where(Initiative.id == initiative_id))
     initiative = result.scalar_one_or_none()
     if initiative is None:
         raise HTTPException(status_code=404, detail="Initiative not found")
@@ -645,20 +515,34 @@ async def list_initiatives(
     session: AsyncSession = Depends(get_session),
     identity: Identity = Depends(get_identity),
 ):
-    result = await session.execute(select(Initiative).options(selectinload(Initiative.district)))
+    result = await session.execute(select(Initiative))
     initiatives = list(result.scalars().all())
-    districts_by_initiative = await membership.get_member_districts_by_initiative(
-        session, [initiative.id for initiative in initiatives]
+    links = list(
+        (await session.execute(
+            select(InitiativeCampaign).where(
+                InitiativeCampaign.initiative_id.in_([i.id for i in initiatives] or [uuid.uuid4()])
+            )
+        )).scalars().all()
     )
-    districts_result = await session.execute(select(District).order_by(District.name))
-    districts = list(districts_result.scalars().all())
+    member_campaign_ids = [link.campaign_id for link in links]
+    campaigns_result = await session.execute(
+        select(Campaign).where(Campaign.id.in_(member_campaign_ids or [uuid.uuid4()]))
+    )
+    campaigns_by_id = {c.id: c for c in campaigns_result.scalars().all()}
+    campaigns_by_initiative: dict[uuid.UUID, list] = {}
+    for link in links:
+        campaign = campaigns_by_id.get(link.campaign_id)
+        if campaign is not None:
+            campaigns_by_initiative.setdefault(link.initiative_id, []).append(campaign)
+    districts_by_initiative = membership.get_member_district_names_by_initiative(
+        initiatives, campaigns_by_initiative
+    )
     return templates.TemplateResponse(
         request,
         "initiatives/list.html",
         {
             "initiatives": initiatives,
             "districts_by_initiative": districts_by_initiative,
-            "districts": districts,
             "identity": identity,
         },
     )
@@ -666,14 +550,14 @@ async def list_initiatives(
 
 @initiatives_router.post("")
 async def create_initiative(
-    district_id: uuid.UUID = Form(...),
+    district_slug: str = Form(...),
     name: str = Form(...),
     description: str = Form(""),
     session: AsyncSession = Depends(get_session),
     identity: Identity = Depends(get_identity),
 ):
-    ensure_write_access(identity, district_id)
-    initiative = membership.create_initiative(district_id, name, description or None)
+    ensure_write_access(identity, district_slug)
+    initiative = membership.create_initiative(district_slug, name, description or None)
     session.add(initiative)
     await session.commit()
     await events.publish_initiative_updated(str(initiative.id), "created")
@@ -690,7 +574,7 @@ async def edit_initiative(
     identity: Identity = Depends(get_identity),
 ):
     initiative = await _get_initiative_or_404(session, initiative_id)
-    ensure_write_access(identity, initiative.district_id)
+    ensure_write_access(identity, initiative.district_slug)
     name = name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Initiative name cannot be empty.")
@@ -713,7 +597,7 @@ async def delete_initiative(
     identity: Identity = Depends(get_identity),
 ):
     initiative = await _get_initiative_or_404(session, initiative_id)
-    ensure_write_access(identity, initiative.district_id)
+    ensure_write_access(identity, initiative.district_slug)
     await membership.delete_initiative(session, initiative)
     await session.commit()
     await events.publish_initiative_updated(str(initiative.id), "deleted")
@@ -732,15 +616,12 @@ async def initiative_detail(
 
     # Campaigns from the anchor district and descendants can join (canv-01).
     member_ids = {m.id for m in members}
-    scope = await hierarchy.expand_district_scope(session, initiative.district_id)
-    scope_ids = [uuid.UUID(district_id) for district_id in scope]
+    scope = gliederungen.get_registry().expand(initiative.district_slug)
     candidates_result = await session.execute(
-        select(Campaign)
-        .options(selectinload(Campaign.district))
-        .where(Campaign.district_id.in_(scope_ids))
+        select(Campaign).where(Campaign.district_slug.in_(scope))
     )
     candidates = [c for c in candidates_result.scalars().all() if c.id not in member_ids]
-    can_write = identity.has_write_access(initiative.district_id)
+    can_write = identity.has_write_access(initiative.district_slug)
     return templates.TemplateResponse(
         request,
         "initiatives/detail.html",
@@ -763,7 +644,7 @@ async def add_member(
     identity: Identity = Depends(get_identity),
 ):
     initiative = await _get_initiative_or_404(session, initiative_id)
-    ensure_write_access(identity, initiative.district_id)
+    ensure_write_access(identity, initiative.district_slug)
 
     campaign_result = await session.execute(select(Campaign).where(Campaign.id == campaign_id))
     campaign = campaign_result.scalar_one_or_none()
@@ -790,7 +671,7 @@ async def remove_member(
     identity: Identity = Depends(get_identity),
 ):
     initiative = await _get_initiative_or_404(session, initiative_id)
-    ensure_write_access(identity, initiative.district_id)
+    ensure_write_access(identity, initiative.district_slug)
 
     result = await session.execute(
         select(InitiativeCampaign).where(

@@ -11,19 +11,16 @@
   </div>
 
   <form method="post" action="/campaigns/new" class="bg-white rounded shadow p-5" hx-indicator="#request-indicator">
-    <label for="district_id" class="block font-bold text-sm mb-2">Gliederung</label>
-    <select id="district_id" name="district_id" required class="w-full border rounded px-3 py-2 mb-5">
-      {% for d in districts %}
-        <option value="{{ d.id }}" {% if not identity.has_write_access(d.id) %}disabled{% endif %}>
-          {{ d.name }}{% if not identity.has_write_access(d.id) %} (kein Schreibzugriff){% endif %}
+    <label for="district_slug" class="block font-bold text-sm mb-2">Gliederung</label>
+    <select id="district_slug" name="district_slug" required class="w-full border rounded px-3 py-2 mb-5">
+      {% for slug, name, depth in gliederungen.ordered() %}
+        <option value="{{ slug }}" {% if not identity.has_write_access(slug) %}disabled{% endif %}>
+          {{ "　" * depth }}{{ name }}{% if not identity.has_write_access(slug) %} (kein Schreibzugriff){% endif %}
         </option>
       {% endfor %}
     </select>
-    {% if not districts %}
-      <p class="text-sm text-red-700 mb-4">Es sind noch keine Gliederungen angelegt.</p>
-    {% endif %}
     <div class="flex justify-end">
-      <button type="submit" {% if not districts %}disabled{% endif %} class="bg-brand-blue text-white font-bold px-4 py-2 rounded disabled:opacity-50">
+      <button type="submit" class="bg-brand-blue text-white font-bold px-4 py-2 rounded disabled:opacity-50">
         Weiter zur Zieldefinition <span aria-hidden="true">→</span>
       </button>
     </div>

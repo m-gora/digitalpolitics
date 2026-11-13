@@ -1,7 +1,8 @@
-"""Seed example hierarchy + campaign data for demoing the prototype.
+"""Seed example campaign data for demoing the prototype.
 
 Run with: uv run python -m dpp.seed
-Idempotent: does nothing if "LV Berlin" already exists.
+Idempotent: does nothing if the "Bauen und Wohnen" initiative already exists.
+Districts come from the Gliederung config (dpp.gliederungen), not the database.
 """
 
 import asyncio
@@ -11,35 +12,29 @@ from sqlalchemy import select
 from dpp.campaign.models import (
     Campaign,
     CampaignStatus,
-    District,
     Initiative,
     InitiativeCampaign,
     Retrospective,
 )
 from dpp.db import async_session_factory
 
+# Gliederung slugs — must exist in config/gliederungen.yaml (arch-02).
+BV_FK = "bv-friedrichshain-kreuzberg"
+OV_KREUZBERG = "ov-kreuzberg"
+OV_WEDDING = "ov-wedding"
+
 
 async def seed() -> None:
     async with async_session_factory() as session:
-        existing = await session.execute(select(District).where(District.name == "LV Berlin"))
+        existing = await session.execute(select(Initiative).where(Initiative.name == "Bauen und Wohnen"))
         if existing.scalar_one_or_none() is not None:
             print("Seed data already present, skipping.")
             return
 
-        lv_berlin = District(name="LV Berlin")
-        bv_fk = District(name="BV Friedrichshain-Kreuzberg", parent=lv_berlin)
-        bv_mitte = District(name="BV Mitte", parent=lv_berlin)
-        ov_kreuzberg = District(name="OV Kreuzberg", parent=bv_fk)
-        ov_friedrichshain = District(name="OV Friedrichshain", parent=bv_fk)
-        ov_wedding = District(name="OV Wedding", parent=bv_mitte)
-
-        session.add_all([lv_berlin, bv_fk, bv_mitte, ov_kreuzberg, ov_friedrichshain, ov_wedding])
-        await session.flush()
-
         # Two campaigns clustered into a district-anchored initiative (canv-01:
         # membership may include campaigns from the anchor and descendants).
         mietendeckel = Campaign(
-            district_id=bv_fk.id,
+            district_slug=BV_FK,
             status=CampaignStatus.DRAFT,
             created_by="jonas",
             created_by_name="Jonas Krüger",
@@ -52,7 +47,7 @@ async def seed() -> None:
             motiv="Steigende Mieten bedrohen die soziale Durchmischung des Kiezes",
         )
         leerstand = Campaign(
-            district_id=bv_fk.id,
+            district_slug=BV_FK,
             status=CampaignStatus.DRAFT,
             created_by="jonas",
             created_by_name="Jonas Krüger",
@@ -65,7 +60,7 @@ async def seed() -> None:
             motiv="Wohnraum ist knapp, Leerstand ist ein sichtbares Ärgernis",
         )
         gruenflaechen = Campaign(
-            district_id=ov_kreuzberg.id,
+            district_slug=OV_KREUZBERG,
             status=CampaignStatus.DRAFT,
             created_by="mira",
             created_by_name="Mira Noll",
@@ -73,7 +68,7 @@ async def seed() -> None:
             ziel="Politisch: Neue Grünflächen im Bezirk verankern.",
         )
         kiezfest = Campaign(
-            district_id=ov_wedding.id,
+            district_slug=OV_WEDDING,
             status=CampaignStatus.FINISHED,
             created_by="peter",
             created_by_name="Peter Sailer",
@@ -103,7 +98,7 @@ async def seed() -> None:
         session.add(kiezfest.retrospective)
 
         bauen_wohnen = Initiative(
-            district_id=bv_fk.id,
+            district_slug=BV_FK,
             name="Bauen und Wohnen",
             description="Bündelung aller wohnungspolitischen Kampagnen in Friedrichshain-Kreuzberg.",
         )

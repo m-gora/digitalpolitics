@@ -67,12 +67,27 @@ def test_no_identity_without_user_id():
     assert parse_identity(_request({"X-Auth-Request-Preferred-Username": "Anna Berg"})) is None
 
 
-def test_identity_carries_roles_and_scopes_as_before():
+def test_groups_claim_expands_to_district_scopes():
+    # "lv-berlin" inherits bv-mitte and ov-wedding per the arch-02 rule
+    # (as configured in config/gliederungen.yaml); "all" sees everything.
     identity = parse_identity(
-        _request({"X-User-Id": "sub-123", "X-User-Roles": "member", "X-District-Scopes": "d1, d2"})
+        _request({"X-User-Id": "sub-123", "X-Auth-Request-Groups": "lv-berlin"})
     )
     assert identity is not None
-    assert identity.roles == ("member",)
-    assert identity.district_scopes == frozenset({"d1", "d2"})
-    assert identity.has_write_access("d1")
-    assert not identity.has_write_access("d3")
+    assert identity.district_scopes == frozenset(
+        {"lv-berlin", "bv-friedrichshain-kreuzberg", "bv-mitte", "ov-kreuzberg", "ov-friedrichshain", "ov-wedding"}
+    )
+    assert identity.has_write_access("ov-wedding")
+    assert not identity.has_write_access("nonexistent")
+
+    all_identity = parse_identity(_request({"X-User-Id": "sub-123", "X-Auth-Request-Groups": "all"}))
+    assert all_identity is not None
+    assert all_identity.district_scopes == frozenset(
+        {"lv-berlin", "bv-friedrichshain-kreuzberg", "bv-mitte", "ov-kreuzberg", "ov-friedrichshain", "ov-wedding"}
+    )
+
+    unknown_identity = parse_identity(
+        _request({"X-User-Id": "sub-123", "X-Auth-Request-Groups": "some-random-group"})
+    )
+    assert unknown_identity is not None
+    assert unknown_identity.district_scopes == frozenset()

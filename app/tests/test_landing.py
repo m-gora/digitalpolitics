@@ -13,7 +13,7 @@ async def test_landing_requires_authentication(client):
 
 
 async def test_landing_shows_available_and_coming_soon_modules(client):
-    response = await client.get("/", headers=auth_headers("anna", set()))
+    response = await client.get("/", headers=auth_headers("anna", ()))
 
     assert response.status_code == 200
     assert 'href="/campaigns"' in response.text
@@ -47,16 +47,14 @@ async def test_landing_shows_available_and_coming_soon_modules(client):
 
 
 async def test_campaign_navigation_only_appears_inside_campaign_context(client):
-    headers = auth_headers("anna", set())
+    headers = auth_headers("anna", ())
 
     landing = await client.get("/", headers=headers)
-    assert 'href="/districts"' not in landing.text
     assert 'href="/initiatives"' not in landing.text
     assert 'id="app-shell" hx-boost="true" hx-target="#app-shell"' in landing.text
 
     campaigns = await client.get("/campaigns", headers=headers)
     assert campaigns.status_code == 200
-    assert 'href="/districts"' in campaigns.text
     assert 'href="/campaigns"' in campaigns.text
     assert 'href="/initiatives"' in campaigns.text
     assert 'href="/crowd/questionnaires"' not in campaigns.text

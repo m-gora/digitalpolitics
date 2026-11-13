@@ -1,20 +1,19 @@
 import pytest
 
-from tests.conftest import auth_headers, make_district
+from tests.conftest import auth_headers
 
 pytestmark = pytest.mark.asyncio
 
 
 async def test_creation_starts_at_district_selection_then_goal_definition(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
+    headers = auth_headers("anna", ("lv-berlin",))
 
     response = await client.get("/campaigns/new", headers=headers)
     assert response.status_code == 200
     assert "Wo findet die Kampagne statt?" in response.text
     assert "Wähle die Gliederung" in response.text
 
-    response = await client.post("/campaigns/new", data={"district_id": str(berlin.id)}, headers=headers)
+    response = await client.post("/campaigns/new", data={"district_slug": "lv-berlin"}, headers=headers)
     assert response.status_code == 303
     location = response.headers["location"]
     assert location.endswith("/wizard/zieldefinition")
@@ -28,9 +27,8 @@ async def test_creation_starts_at_district_selection_then_goal_definition(client
 
 
 async def test_goal_definition_must_be_complete_before_audience_step_unlocks(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    response = await client.post("/campaigns/new", data={"district_id": str(berlin.id)}, headers=headers)
+    headers = auth_headers("anna", ("lv-berlin",))
+    response = await client.post("/campaigns/new", data={"district_slug": "lv-berlin"}, headers=headers)
     campaign_id = response.headers["location"].split("/")[2]
 
     response = await client.get(f"/campaigns/{campaign_id}/wizard/zielgruppen-kanaele", headers=headers)
@@ -55,9 +53,8 @@ async def test_goal_definition_must_be_complete_before_audience_step_unlocks(cli
 
 
 async def test_audience_and_execution_steps_show_explanations_and_progress_sequentially(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    response = await client.post("/campaigns/new", data={"district_id": str(berlin.id)}, headers=headers)
+    headers = auth_headers("anna", ("lv-berlin",))
+    response = await client.post("/campaigns/new", data={"district_slug": "lv-berlin"}, headers=headers)
     campaign_id = response.headers["location"].split("/")[2]
 
     await client.post(
@@ -97,16 +94,14 @@ async def test_audience_and_execution_steps_show_explanations_and_progress_seque
 
 
 async def test_wizard_requires_campaign_district_write_access(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    outsider = auth_headers("outsider", set())
-    response = await client.post("/campaigns/new", data={"district_id": str(berlin.id)}, headers=outsider)
+    outsider = auth_headers("outsider", ())
+    response = await client.post("/campaigns/new", data={"district_slug": "lv-berlin"}, headers=outsider)
     assert response.status_code == 403
 
 
 async def test_campaign_overview_links_to_wizard_and_shows_field_explanations(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    response = await client.post("/campaigns", data={"district_id": str(berlin.id)}, headers=headers)
+    headers = auth_headers("anna", ("lv-berlin",))
+    response = await client.post("/campaigns", data={"district_slug": "lv-berlin"}, headers=headers)
     campaign_id = response.headers["location"].split("/")[2]
 
     response = await client.get(f"/campaigns/{campaign_id}", headers=headers)

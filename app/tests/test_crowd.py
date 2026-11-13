@@ -7,7 +7,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
-from dpp.campaign.models import Campaign, CampaignStatus, District
+from dpp.campaign.models import Campaign, CampaignStatus
 from dpp.crowd.events import crowd_channel
 from dpp.crowd.models import Question, Questionnaire, QuestionnaireStatus, Response
 from dpp.crowd.scrubber import scrub_text
@@ -54,8 +54,7 @@ async def test_scrubber_redacts_common_german_direct_identifiers():
 
 
 async def test_public_questionnaire_page_and_answer_submission(client, db_session):
-    district = District(name="Kreuzberg")
-    campaign = Campaign(district=district, status=CampaignStatus.RUNNING, thema="Kiezgrün")
+    campaign = Campaign(district_slug="ov-kreuzberg", status=CampaignStatus.RUNNING, thema="Kiezgrün")
     q = questionnaire_fixture(campaign)
     question_text, question_choice = q.questions
     db_session.add(q)
@@ -100,7 +99,7 @@ async def test_public_questionnaire_page_and_answer_submission(client, db_sessio
     analysis = await client.get(
         "/crowd/api/analysis",
         params={"qid": str(q.id), "west": 13, "south": 52, "east": 14, "north": 53, "color_question_id": str(question_choice.id)},
-        headers=auth_headers("analyst", set()),
+        headers=auth_headers("analyst", ()),
     )
     assert analysis.status_code == 200, analysis.text
     assert analysis.json()["aggregates"]["responses"] == 1
@@ -111,20 +110,19 @@ async def test_public_questionnaire_page_and_answer_submission(client, db_sessio
 async def test_auth_required_for_admin_but_public_respondent_is_anonymous(client, db_session):
     assert (await client.get("/crowd/questionnaires")).status_code == 401
     assert (await client.get("/crowd/analysis")).status_code == 401
-    district = District(name="Berlin")
-    campaign = Campaign(district=district, status=CampaignStatus.RUNNING)
+    campaign = Campaign(district_slug="lv-berlin", status=CampaignStatus.RUNNING)
     q = questionnaire_fixture(campaign)
     db_session.add(q)
     await db_session.commit()
     public = await client.get(f"/crowd/r/{q.token}", headers={"X-User-Id": "spoofed"})
     assert public.status_code == 200
-    admin = await client.get("/crowd/questionnaires", headers=auth_headers("viewer", set()))
+    admin = await client.get("/crowd/questionnaires", headers=auth_headers("viewer", ()))
     assert admin.status_code == 200
     assert 'href="/districts"' not in admin.text
     assert 'href="/campaigns"' not in admin.text
     assert 'href="/initiatives"' not in admin.text
     assert 'href="/crowd/questionnaires" class="text-brand-yellow underline" aria-current="page"' in admin.text
-    analysis_page = await client.get("/crowd/analysis", headers=auth_headers("viewer", set()))
+    analysis_page = await client.get("/crowd/analysis", headers=auth_headers("viewer", ()))
     assert analysis_page.status_code == 200
     assert "Geodatenanalyse" in analysis_page.text
     assert 'href="/crowd/questionnaires"' in analysis_page.text
@@ -141,7 +139,7 @@ async def test_creator_can_preview_draft_without_storage(client, db_session):
     )
     db_session.add(q)
     await db_session.commit()
-    preview = await client.get(f"/crowd/questionnaires/{q.id}/preview", headers=auth_headers("owner", set()))
+    preview = await client.get(f"/crowd/questionnaires/{q.id}/preview", headers=auth_headers("owner", ()))
     assert preview.status_code == 200
     assert "Vorschau – Antworten werden nicht gespeichert" in preview.text
     assert 'data-preview="true"' in preview.text
@@ -183,7 +181,7 @@ async def test_questionnaire_write_stores_the_display_name(client):
 
 
 async def test_authenticated_user_can_create_edit_and_activate_questionnaire(client):
-    headers = auth_headers("creator", set())
+    headers = auth_headers("creator", ())
     created = await client.post(
         "/crowd/questionnaires/new",
         content=urlencode([
@@ -208,11 +206,10 @@ async def test_authenticated_user_can_create_edit_and_activate_questionnaire(cli
 
 
 async def test_linked_activation_requires_running_campaign_and_dropdown_filters_closed(client, db_session):
-    district = District(name="Pankow")
-    draft = Campaign(district=district, status=CampaignStatus.DRAFT, thema="Planung")
-    review = Campaign(district=district, status=CampaignStatus.REVIEW, thema="Prüfung")
-    running = Campaign(district=district, status=CampaignStatus.RUNNING, thema="Laufend")
-    finished = Campaign(district=district, status=CampaignStatus.FINISHED, thema="Beendet")
+    draft = Campaign(district_slug="bv-mitte", status=CampaignStatus.DRAFT, thema="Planung")
+    review = Campaign(district_slug="bv-mitte", status=CampaignStatus.REVIEW, thema="Prüfung")
+    running = Campaign(district_slug="bv-mitte", status=CampaignStatus.RUNNING, thema="Laufend")
+    finished = Campaign(district_slug="bv-mitte", status=CampaignStatus.FINISHED, thema="Beendet")
     q = Questionnaire(
         title="Parkbefragung",
         status=QuestionnaireStatus.DRAFT,
@@ -222,7 +219,7 @@ async def test_linked_activation_requires_running_campaign_and_dropdown_filters_
     )
     db_session.add_all([draft, review, running, finished, q])
     await db_session.commit()
-    headers = auth_headers("owner", {str(district.id)})
+    headers = auth_headers("owner", ("bv-mitte",))
 
     new_page = await client.get("/crowd/questionnaires/new", headers=headers)
     assert "Planung" in new_page.text and "Prüfung" in new_page.text and "Laufend" in new_page.text
@@ -259,8 +256,7 @@ async def test_linked_activation_requires_running_campaign_and_dropdown_filters_
 
 
 async def test_campaign_completion_closes_linked_active_questionnaires_and_publishes_event(client, db_session):
-    district = District(name="Tempelhof")
-    campaign = Campaign(district=district, status=CampaignStatus.RUNNING, thema="Stadtgrün")
+    campaign = Campaign(district_slug="ov-wedding", status=CampaignStatus.RUNNING, thema="Stadtgrün")
     q = questionnaire_fixture(campaign)
     db_session.add(q)
     await db_session.commit()
@@ -269,7 +265,7 @@ async def test_campaign_completion_closes_linked_active_questionnaires_and_publi
         response = await client.post(
             f"/campaigns/{campaign.id}/transition",
             data={"to_status": "finished"},
-            headers=auth_headers("owner", {str(district.id)}),
+            headers=auth_headers("owner", ("bv-mitte",)),
             follow_redirects=False,
         )
         assert response.status_code == 303
@@ -287,7 +283,7 @@ async def test_questionnaire_edit_is_creator_only_and_question_count_is_limited(
     q = Questionnaire(title="Test", created_by="owner")
     db_session.add(q)
     await db_session.commit()
-    denied = await client.post(f"/crowd/questionnaires/{q.id}/activate", headers=auth_headers("other", set()))
+    denied = await client.post(f"/crowd/questionnaires/{q.id}/activate", headers=auth_headers("other", ()))
     assert denied.status_code == 403
     q = await db_session.scalar(select(Questionnaire).options(selectinload(Questionnaire.questions)).where(Questionnaire.id == q.id))
     q.questions = [Question(position=i, prompt=f"Frage {i}", question_type="text", required=True, options=[]) for i in range(1, 6)]
@@ -302,8 +298,7 @@ async def test_questionnaire_edit_is_creator_only_and_question_count_is_limited(
 
 
 async def test_offline_answer_sync_is_accepted_only_if_captured_before_collection_stopped(db_session):
-    district = District(name="Mitte")
-    campaign = Campaign(district=district, status=CampaignStatus.RUNNING)
+    campaign = Campaign(district_slug="bv-mitte", status=CampaignStatus.RUNNING)
     q = questionnaire_fixture(campaign)
     db_session.add(q)
     await db_session.commit()
@@ -324,8 +319,7 @@ async def test_offline_answer_sync_is_accepted_only_if_captured_before_collectio
 
 
 async def test_linked_questionnaire_cannot_activate_before_campaign_runs():
-    district = District(name="Neukölln")
-    campaign = Campaign(district=district, status=CampaignStatus.REVIEW)
+    campaign = Campaign(district_slug="bv-mitte", status=CampaignStatus.REVIEW)
     q = Questionnaire(
         title="Vorbereitung",
         status=QuestionnaireStatus.DRAFT,

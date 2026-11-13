@@ -2,21 +2,20 @@ import re
 
 import pytest
 
-from tests.conftest import auth_headers, make_district
+from tests.conftest import auth_headers
 
 pytestmark = pytest.mark.asyncio
 
 
-async def _create_campaign(client, district_id: str, headers: dict) -> str:
-    resp = await client.post("/campaigns", data={"district_id": district_id}, headers=headers)
+async def _create_campaign(client, district_slug: str, headers: dict) -> str:
+    resp = await client.post("/campaigns", data={"district_slug": district_slug}, headers=headers)
     assert resp.status_code == 303
     return resp.headers["location"].rsplit("/", 1)[-1]
 
 
 async def test_core_gate_blocks_layer1(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    campaign_id = await _create_campaign(client, str(berlin.id), headers)
+    headers = auth_headers("anna", ("lv-berlin",))
+    campaign_id = await _create_campaign(client, "lv-berlin", headers)
 
     resp = await client.post(f"/campaigns/{campaign_id}/fields", data={"zielgruppen": "x"}, headers=headers)
     assert resp.status_code == 400
@@ -36,9 +35,8 @@ async def test_core_gate_blocks_layer1(client, db_session):
 
 
 async def test_layer1_gate_blocks_layer2(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    campaign_id = await _create_campaign(client, str(berlin.id), headers)
+    headers = auth_headers("anna", ("lv-berlin",))
+    campaign_id = await _create_campaign(client, "lv-berlin", headers)
 
     await client.post(f"/campaigns/{campaign_id}/fields", data={"thema": "T", "ziel": "Z"}, headers=headers)
 
@@ -56,9 +54,8 @@ async def test_layer1_gate_blocks_layer2(client, db_session):
 
 
 async def test_fields_not_editable_outside_draft(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    campaign_id = await _create_campaign(client, str(berlin.id), headers)
+    headers = auth_headers("anna", ("lv-berlin",))
+    campaign_id = await _create_campaign(client, "lv-berlin", headers)
 
     await client.post(f"/campaigns/{campaign_id}/transition", data={"to_status": "review"}, headers=headers)
 
@@ -67,9 +64,8 @@ async def test_fields_not_editable_outside_draft(client, db_session):
 
 
 async def test_full_lifecycle_and_retro_auto_creation(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    campaign_id = await _create_campaign(client, str(berlin.id), headers)
+    headers = auth_headers("anna", ("lv-berlin",))
+    campaign_id = await _create_campaign(client, "lv-berlin", headers)
 
     detail = await client.get(f"/campaigns/{campaign_id}", headers=headers)
     assert "Entwurf" in detail.text
@@ -114,9 +110,8 @@ async def test_full_lifecycle_and_retro_auto_creation(client, db_session):
 
 
 async def test_review_can_go_back_to_draft(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    campaign_id = await _create_campaign(client, str(berlin.id), headers)
+    headers = auth_headers("anna", ("lv-berlin",))
+    campaign_id = await _create_campaign(client, "lv-berlin", headers)
 
     await client.post(f"/campaigns/{campaign_id}/transition", data={"to_status": "review"}, headers=headers)
     resp = await client.post(f"/campaigns/{campaign_id}/transition", data={"to_status": "draft"}, headers=headers)
@@ -128,9 +123,8 @@ async def test_review_can_go_back_to_draft(client, db_session):
 
 
 async def test_aborted_also_gets_retro(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
-    campaign_id = await _create_campaign(client, str(berlin.id), headers)
+    headers = auth_headers("anna", ("lv-berlin",))
+    campaign_id = await _create_campaign(client, "lv-berlin", headers)
 
     for to_status in ("review", "running", "aborted"):
         resp = await client.post(f"/campaigns/{campaign_id}/transition", data={"to_status": to_status}, headers=headers)

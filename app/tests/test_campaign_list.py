@@ -1,13 +1,13 @@
 import pytest
 
 from dpp.campaign.models import Campaign, CampaignStatus
-from tests.conftest import auth_headers, make_district
+from tests.conftest import auth_headers
 
 pytestmark = pytest.mark.asyncio
 
 
-async def _add_campaign(session, district, *, status, thema, **fields) -> Campaign:
-    campaign = Campaign(district_id=district.id, status=status, thema=thema, **fields)
+async def _add_campaign(session, district_slug, *, status, thema, **fields) -> Campaign:
+    campaign = Campaign(district_slug=district_slug, status=status, thema=thema, **fields)
     session.add(campaign)
     await session.commit()
     return campaign
@@ -16,23 +16,22 @@ async def _add_campaign(session, district, *, status, thema, **fields) -> Campai
 async def test_campaign_list_defaults_to_running_and_can_filter_status(
     client, db_session
 ):
-    district = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(district.id)})
+    headers = auth_headers("anna", ("lv-berlin",))
     await _add_campaign(
         db_session,
-        district,
+        "lv-berlin",
         status=CampaignStatus.RUNNING,
         thema="Laufende Verkehrswende",
     )
     await _add_campaign(
         db_session,
-        district,
+        "lv-berlin",
         status=CampaignStatus.DRAFT,
         thema="Entwurf für mehr Radwege",
     )
     await _add_campaign(
         db_session,
-        district,
+        "lv-berlin",
         status=CampaignStatus.FINISHED,
         thema="Abgeschlossene Schulhofkampagne",
     )
@@ -59,11 +58,10 @@ async def test_campaign_list_defaults_to_running_and_can_filter_status(
 async def test_campaign_list_searches_campaign_fields_summary_and_district(
     client, db_session
 ):
-    district = await make_district(db_session, "Gliederung Sonnental")
-    headers = auth_headers("anna", {str(district.id)})
+    headers = auth_headers("anna", ("lv-berlin",))
     await _add_campaign(
         db_session,
-        district,
+        "lv-berlin",
         status=CampaignStatus.RUNNING,
         thema="Nahverkehr verbessern",
         ziel="Barrierefreie Haltestellen",
@@ -72,7 +70,7 @@ async def test_campaign_list_searches_campaign_fields_summary_and_district(
 
     answer_match = await client.get("/campaigns?q=Haltestellen", headers=headers)
     summary_match = await client.get("/campaigns?q=Fahrgastbeirat", headers=headers)
-    district_match = await client.get("/campaigns?q=Sonnental", headers=headers)
+    district_match = await client.get("/campaigns?q=berlin", headers=headers)
 
     assert "Nahverkehr verbessern" in answer_match.text
     assert "Nahverkehr verbessern" in summary_match.text
@@ -82,11 +80,10 @@ async def test_campaign_list_searches_campaign_fields_summary_and_district(
 async def test_campaign_list_shows_no_match_state_and_rejects_unknown_status(
     client, db_session
 ):
-    district = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(district.id)})
+    headers = auth_headers("anna", ("lv-berlin",))
     await _add_campaign(
         db_session,
-        district,
+        "lv-berlin",
         status=CampaignStatus.RUNNING,
         thema="Klimaschutz",
     )
@@ -104,7 +101,7 @@ async def test_campaign_list_shows_no_match_state_and_rejects_unknown_status(
 
 
 async def test_campaign_list_distinguishes_empty_campaign_table(client):
-    response = await client.get("/campaigns", headers=auth_headers("anna", set()))
+    response = await client.get("/campaigns", headers=auth_headers("anna", ()))
 
     assert response.status_code == 200
     assert "Noch keine Kampagnen angelegt." in response.text

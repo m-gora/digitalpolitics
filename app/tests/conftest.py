@@ -2,12 +2,20 @@ import os
 import uuid
 
 # Must happen before any `dpp.*` import: dpp.db builds its engine at import
-# time from settings read from the environment.
+# time from settings read from the environment, and dpp.gliederungen loads
+# the registry from DPP_GLIEDERUNGEN_FILE once per process.
+import pathlib
+
 os.environ["DATABASE_URL"] = "postgresql+asyncpg://dpp:dpp@localhost:5432/dpp_test"
 os.environ["APP_ENV"] = "test"
 os.environ.setdefault("SESSION_SECRET", "test-secret")
 # Never reach the real TypeSafe API from tests, even if a developer .env sets a key.
 os.environ["TYPESAFE_API_KEY"] = ""
+# Tests use the same bundled Gliederung config as local development.
+os.environ.setdefault(
+    "DPP_GLIEDERUNGEN_FILE",
+    str(pathlib.Path(__file__).resolve().parent.parent / "config" / "gliederungen.yaml"),
+)
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -16,7 +24,6 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from dpp.campaign.models import (  # noqa: F401
     Campaign,
-    District,
     Initiative,
     InitiativeCampaign,
     Retrospective,
@@ -71,31 +78,24 @@ async def client():
 
 def auth_headers(
     user_id: str,
-    district_scopes: set[str],
-    roles: tuple[str, ...] = ("member",),
+    groups: tuple[str, ...],
     display_name: str | None = None,
     email: str | None = None,
 ) -> dict[str, str]:
     """Build forward-auth headers directly (arch-01), bypassing dev impersonation.
 
+    groups mirrors the X-Auth-Request-Groups header oauth2-proxy relays from
+    the Auth0 groups claim (Gliederung slugs or "all"); dpp.auth.headers
+    expands it to district scopes per the arch-02 inheritance rule.
     display_name/email mirror the X-Auth-Request-* headers oauth2-proxy relays
     in production (the display-name fallback chain source).
     """
     headers = {
         "X-User-Id": user_id,
-        "X-User-Roles": ",".join(roles),
-        "X-District-Scopes": ",".join(district_scopes),
+        "X-Auth-Request-Groups": ",".join(groups),
     }
     if display_name is not None:
         headers["X-Auth-Request-Preferred-Username"] = display_name
     if email is not None:
         headers["X-Auth-Request-Email"] = email
     return headers
-
-
-async def make_district(session, name: str, parent=None) -> District:
-    d = District(id=uuid.uuid4(), name=name, parent=parent)
-    session.add(d)
-    await session.commit()
-    await session.refresh(d)
-    return d

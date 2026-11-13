@@ -22,7 +22,7 @@
 <a href="/campaigns" class="mb-4 inline-block text-sm font-bold text-brand-blue underline hover:text-brand-cyan">&larr; Zurück zur Kampagnenliste</a>
 <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
   <div>
-    <p class="text-sm text-gray-600">{{ campaign.district.name }}</p>
+    <p class="text-sm text-gray-600">{{ gliederungen.name(campaign.district_slug) }}</p>
     {% if campaign.created_by %}
     <p class="mt-1 break-words text-xs text-gray-500">Erstellt von {{ campaign.created_by_name or campaign.created_by }}</p>
     {% endif %}
@@ -126,10 +126,10 @@
 
     <form method="post" action="/campaigns/{{ campaign.id }}/fork" class="space-y-4" hx-indicator="#request-indicator">
       <div>
-        <label for="target_district_id-{{ campaign.id }}" class="mb-1 block text-sm font-bold text-gray-700">Ziel-Gliederung</label>
-        <select id="target_district_id-{{ campaign.id }}" name="target_district_id" required class="w-full rounded border border-gray-300 px-3 py-2">
-        {% for d in districts %}
-          <option value="{{ d.id }}" {% if not identity.has_write_access(d.id) %}disabled{% endif %}>{{ d.name }}</option>
+        <label for="target_district_slug-{{ campaign.id }}" class="mb-1 block text-sm font-bold text-gray-700">Ziel-Gliederung</label>
+        <select id="target_district_slug-{{ campaign.id }}" name="target_district_slug" required class="w-full rounded border border-gray-300 px-3 py-2">
+        {% for slug, name, depth in gliederungen.ordered() %}
+          <option value="{{ slug }}" {% if not identity.has_write_access(slug) %}disabled{% endif %}>{{ "　" * depth }}{{ name }}</option>
         {% endfor %}
         </select>
       </div>

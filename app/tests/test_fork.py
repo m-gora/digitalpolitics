@@ -1,16 +1,14 @@
 import pytest
 
-from tests.conftest import auth_headers, make_district
+from tests.conftest import auth_headers
 
 pytestmark = pytest.mark.asyncio
 
 
 async def test_fork_copies_fields_only(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    kreuzberg = await make_district(db_session, "OV Kreuzberg", parent=berlin)
-    headers = auth_headers("anna", {str(berlin.id), str(kreuzberg.id)})
+    headers = auth_headers("anna", ("lv-berlin",))
 
-    resp = await client.post("/campaigns", data={"district_id": str(berlin.id)}, headers=headers)
+    resp = await client.post("/campaigns", data={"district_slug": "lv-berlin"}, headers=headers)
     source_id = resp.headers["location"].rsplit("/", 1)[-1]
     await client.post(
         f"/campaigns/{source_id}/fields",
@@ -26,7 +24,7 @@ async def test_fork_copies_fields_only(client, db_session):
 
     resp = await client.post(
         f"/campaigns/{source_id}/fork",
-        data={"target_district_id": str(kreuzberg.id)},
+        data={"target_district_slug": "ov-kreuzberg"},
         headers=headers,
     )
     assert resp.status_code == 303
@@ -40,18 +38,16 @@ async def test_fork_copies_fields_only(client, db_session):
 
 
 async def test_fork_requires_write_access_to_target_district(client, db_session):
-    berlin = await make_district(db_session, "LV Berlin")
-    mitte = await make_district(db_session, "BV Mitte", parent=berlin)
-    headers = auth_headers("anna", {str(berlin.id)})
+    headers = auth_headers("anna", ("lv-berlin",))
 
-    resp = await client.post("/campaigns", data={"district_id": str(berlin.id)}, headers=headers)
+    resp = await client.post("/campaigns", data={"district_slug": "lv-berlin"}, headers=headers)
     source_id = resp.headers["location"].rsplit("/", 1)[-1]
 
     # Outsider can read (global read) but not fork into a district they can't write to.
-    outsider_headers = auth_headers("outsider", set())
+    outsider_headers = auth_headers("outsider", ())
     resp = await client.post(
         f"/campaigns/{source_id}/fork",
-        data={"target_district_id": str(mitte.id)},
+        data={"target_district_slug": "bv-mitte"},
         headers=outsider_headers,
     )
     assert resp.status_code == 403

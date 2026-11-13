@@ -13,10 +13,10 @@
   <form method="post" action="/initiatives" class="flex gap-2 items-end flex-wrap">
     <div>
       <label class="block text-xs font-bold text-gray-600">Koordinierende Gliederung</label>
-      <select name="district_id" class="border rounded px-2 py-1">
-        {% for d in districts %}
-          <option value="{{ d.id }}" {% if not identity.has_write_access(d.id) %}disabled{% endif %}>
-            {{ d.name }}
+      <select name="district_slug" class="border rounded px-2 py-1">
+        {% for slug, name, depth in gliederungen.ordered() %}
+          <option value="{{ slug }}" {% if not identity.has_write_access(slug) %}disabled{% endif %}>
+            {{ name }}
           </option>
         {% endfor %}
       </select>
@@ -40,12 +40,12 @@
     <div class="flex justify-between items-center">
       <div class="min-w-0 flex-1">
         <div class="font-bold text-brand-blue">{{ i.name }}</div>
-        <div class="mt-1 text-xs text-gray-500">Koordiniert von {{ i.district.name }}</div>
+        <div class="mt-1 text-xs text-gray-500">Koordiniert von {{ gliederungen.name(i.district_slug) }}</div>
         {% set member_districts = districts_by_initiative.get(i.id, []) %}
         {% if member_districts %}
         <div class="mt-2 flex flex-wrap gap-1.5" aria-label="Beteiligte Gliederungen">
-          {% for district in member_districts %}
-            <span class="rounded-full bg-brand-cyan/10 px-2.5 py-1 text-xs font-bold text-brand-blue">{{ district.name }}</span>
+          {% for district_name in member_districts %}
+            <span class="rounded-full bg-brand-cyan/10 px-2.5 py-1 text-xs font-bold text-brand-blue">{{ district_name }}</span>
           {% endfor %}
         </div>
         {% else %}

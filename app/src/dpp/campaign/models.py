@@ -20,34 +20,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from dpp.db import Base
 
 
-class District(Base):
-    """A node in the arbitrary-depth party unit hierarchy (see spec canv-01).
-
-    Example instance: LV Berlin -> BV Friedrichshain-Kreuzberg -> OV Kreuzberg.
-    The hierarchy depth is not fixed; any node may have any number of children.
-    """
-
-    __tablename__ = "districts"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    parent_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("districts.id", ondelete="CASCADE"), nullable=True
-    )
-
-    parent: Mapped["District | None"] = relationship(
-        "District", remote_side="District.id", back_populates="children"
-    )
-    children: Mapped[list["District"]] = relationship(
-        "District", back_populates="parent", cascade="all, delete-orphan"
-    )
-    campaigns: Mapped[list["Campaign"]] = relationship(back_populates="district")
-    initiatives: Mapped[list["Initiative"]] = relationship(back_populates="district")
-
-    def __repr__(self) -> str:  # pragma: no cover
-        return f"<District {self.name!r}>"
-
-
 class CampaignStatus(str, enum.Enum):
     """Campaign lifecycle statuses. See spec canv-05."""
 
@@ -87,12 +59,15 @@ class Campaign(Base):
     """A campaign canvas instance. See spec canv-01/canv-02/canv-05."""
 
     __tablename__ = "campaigns"
-    __table_args__ = (Index("ix_campaigns_search_vector", "search_vector", postgresql_using="gin"),)
+    __table_args__ = (
+        Index("ix_campaigns_search_vector", "search_vector", postgresql_using="gin"),
+        Index("ix_campaigns_district_slug", "district_slug"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    district_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("districts.id", ondelete="RESTRICT"), nullable=False
-    )
+    # Gliederung slug, validated against the config registry at write time
+    # (the scope check only lets valid slugs through); see arch-02/dpp.gliederungen.
+    district_slug: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[CampaignStatus] = mapped_column(
         Enum(CampaignStatus, name="campaign_status", native_enum=False, length=20),
         nullable=False,
@@ -146,7 +121,6 @@ class Campaign(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    district: Mapped["District"] = relationship(back_populates="campaigns")
     forked_from: Mapped["Campaign | None"] = relationship(remote_side="Campaign.id")
     initiative_links: Mapped[list["InitiativeCampaign"]] = relationship(
         back_populates="campaign", cascade="all, delete-orphan"
@@ -200,11 +174,11 @@ class Initiative(Base):
     """
 
     __tablename__ = "initiatives"
+    __table_args__ = (Index("ix_initiatives_district_slug", "district_slug"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    district_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("districts.id", ondelete="RESTRICT"), nullable=False
-    )
+    # Anchor Gliederung slug (see dpp.gliederungen); validated at write time.
+    district_slug: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -217,7 +191,6 @@ class Initiative(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    district: Mapped["District"] = relationship(back_populates="initiatives")
     campaign_links: Mapped[list["InitiativeCampaign"]] = relationship(
         back_populates="initiative", cascade="all, delete-orphan"
     )

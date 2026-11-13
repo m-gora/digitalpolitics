@@ -5,7 +5,7 @@ import pytest
 import dpp.campaign.router as campaign_router
 import dpp.campaign.summary as summary_module
 from dpp.campaign.models import Campaign, CampaignStatus
-from tests.conftest import auth_headers, make_district
+from tests.conftest import auth_headers
 
 pytestmark = pytest.mark.asyncio
 
@@ -88,12 +88,11 @@ async def test_summary_only_generates_for_a_complete_canvas(monkeypatch):
 async def test_completed_canvas_edits_regenerate_summary_and_list_displays_it(
     client, db_session, monkeypatch
 ):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
+    headers = auth_headers("anna", ("lv-berlin",))
     provider = FakeAIProvider()
     monkeypatch.setattr(summary_module, "get_ai_provider", lambda: provider)
 
-    response = await client.post("/campaigns", data={"district_id": str(berlin.id)}, headers=headers)
+    response = await client.post("/campaigns", data={"district_slug": "lv-berlin"}, headers=headers)
     campaign_id = response.headers["location"].rsplit("/", 1)[-1]
 
     # An incomplete canvas is saved, but does not trigger a summary.
@@ -136,8 +135,7 @@ async def test_completed_canvas_edits_regenerate_summary_and_list_displays_it(
 
 
 async def test_coherence_recompute_only_runs_for_narrative_field_edits(client, db_session, monkeypatch):
-    berlin = await make_district(db_session, "LV Berlin")
-    headers = auth_headers("anna", {str(berlin.id)})
+    headers = auth_headers("anna", ("lv-berlin",))
     coherence_attempts = []
 
     async def record_coherence_attempt(campaign_id):
@@ -145,7 +143,7 @@ async def test_coherence_recompute_only_runs_for_narrative_field_edits(client, d
 
     monkeypatch.setattr(campaign_router, "_recompute_campaign_coherence", record_coherence_attempt)
 
-    response = await client.post("/campaigns", data={"district_id": str(berlin.id)}, headers=headers)
+    response = await client.post("/campaigns", data={"district_slug": "lv-berlin"}, headers=headers)
     campaign_id = response.headers["location"].rsplit("/", 1)[-1]
     await client.post(
         f"/campaigns/{campaign_id}/fields",

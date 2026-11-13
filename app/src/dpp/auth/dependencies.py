@@ -16,9 +16,9 @@ async def get_identity(request: Request) -> Identity:
     return identity
 
 
-def ensure_write_access(identity: Identity, district_id: object) -> None:
+def ensure_write_access(identity: Identity, district_slug: str) -> None:
     """Write access is district-scoped (arch-02); raises 403 otherwise."""
-    if not identity.has_write_access(district_id):
+    if not identity.has_write_access(district_slug):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have write access to this district.",

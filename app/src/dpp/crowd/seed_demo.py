@@ -12,22 +12,17 @@ from geoalchemy2.elements import WKTElement
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from dpp.campaign.models import Campaign, CampaignStatus, District
+from dpp.campaign.models import Campaign, CampaignStatus
 from dpp.crowd.models import Question, Questionnaire, QuestionnaireStatus, Response
 from dpp.db import async_session_factory
 
 
 async def seed_demo() -> None:
     async with async_session_factory() as session:
-        district = await session.scalar(select(District).where(District.name == "BV Friedrichshain-Kreuzberg"))
-        if district is None:
-            district = District(name="BV Friedrichshain-Kreuzberg")
-            session.add(district)
-            await session.flush()
         campaign = await session.scalar(select(Campaign).where(Campaign.thema == "Kiezgrün – Demo Crowdsourcing"))
         if campaign is None:
             campaign = Campaign(
-                district_id=district.id,
+                district_slug="bv-friedrichshain-kreuzberg",
                 status=CampaignStatus.RUNNING,
                 created_by="demo",
                 created_by_name="Demo",
