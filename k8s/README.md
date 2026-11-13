@@ -33,22 +33,22 @@ Gliederung YAML) rolls the pod automatically on the next flux reconcile.
 ## Flux registration (one-time, imperative)
 
 ```bash
-# One-time: generate the pull secret (keypair + GitHub host key)
-flux create secret git dpp-git-auth --namespace flux-system \
-  --url=ssh://git@github.com/m-gora/digitalpolitics
-# Add the printed public key as a read-only deploy key in GitHub:
-# https://github.com/m-gora/digitalpolitics/settings/keys
-
 flux create source git dpp \
-  --url=ssh://git@github.com/m-gora/digitalpolitics \
-  --branch=main --interval=1m \
-  --secret-ref=dpp-git-auth
+  --url=https://github.com/m-gora/digitalpolitics \
+  --branch=main --interval=1m
 
 flux create kustomization dpp \
   --source-ref=dpp --path=./k8s/app \
   --prune --interval=10m \
   --decryption-provider=sops --decryption-secret=sops-age
 ```
+
+(The repo is public, so flux pulls anonymously over HTTPS — no deploy key or
+token needed. If it ever goes private, add a secret:
+`flux create secret git dpp-git-auth --namespace flux-system
+--url=ssh://git@github.com/m-gora/digitalpolitics`, add the printed public
+key as a read-only deploy key in GitHub, and pass `--secret-ref=dpp-git-auth`
+to `flux create source git`.)
 
 These objects live in etcd only (ArgoCD-style imperative app registration): a
 cluster rebuild needs the two commands re-run. `flux export` them into
