@@ -37,5 +37,9 @@ OAUTH2_PROXY_COOKIE_DOMAINS=dpp.cloud.marcodoes.tech
 OAUTH2_PROXY_WHITELIST_DOMAINS=dpp.cloud.marcodoes.tech
 OAUTH2_PROXY_EMAIL_DOMAINS=*
 OAUTH2_PROXY_SET_XAUTHREQUEST=true
+# Root-path forwardAuth mode: redirect unauthenticated requests straight to
+# the IdP instead of serving the oauth2-proxy button page (Traefik passes the
+# 302 through).
+OAUTH2_PROXY_SKIP_PROVIDER_BUTTON=true
 OAUTH2_PROXY_PASS_ACCESS_TOKEN=false
 OAUTH2_PROXY_REVERSE_PROXY=true

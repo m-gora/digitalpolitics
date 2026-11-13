@@ -1,8 +1,15 @@
 # Forwards unauthenticated requests to the oauth2-proxy sidecar (auth flow)
 # and relays the identity claims oauth2-proxy derives from the Auth0 ID token
-# onto the request sent to dpp. X-User-Id comes from the `sub` claim
-# (oauth2-proxy default --user-claim, kept unchanged); X-Auth-Request-Groups
-# carries the https://dpp/groups claim (Gliederung memberships; see adr-03).
+# onto the request sent to dpp. The identity key arrives as X-Auth-Request-User
+# (the OIDC `sub` claim — oauth2-proxy's default --user-claim); the app reads
+# it via DPP_USER_ID_HEADER. X-Auth-Request-Groups carries the https://dpp/groups
+# claim (Gliederung memberships; see adr-03).
+#
+# Address is the service ROOT, not /oauth2/auth: on the root path oauth2-proxy
+# answers unauthenticated forwardAuth checks with a 302 to the IdP (which
+# Traefik passes through to the browser), while /oauth2/auth only ever returns
+# a bare 401 (that's the nginx error_page pattern). trustForwardHeader lets
+# oauth2-proxy derive the callback URL from X-Forwarded-Host/Proto.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -10,7 +17,8 @@ metadata:
   namespace: dpp
 spec:
   forwardAuth:
-    address: http://dpp.dpp.svc.cluster.local:4180/oauth2/auth
+    address: http://dpp.dpp.svc.cluster.local:4180
+    trustForwardHeader: true
     # Trust only these from the auth response; the app ignores anything else.
     authResponseHeaders:
       - X-Auth-Request-User
