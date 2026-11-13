@@ -15,8 +15,8 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
       - name: Start PostgreSQL with required extensions
         run: |
           set -euo pipefail
@@ -45,7 +45,7 @@ jobs:
         run: uv run pytest
       - name: Build application image
         run: docker build --file Dockerfile --tag dpp:ci .
-      - uses: mikefarah/yq@v4.45.1
+      - uses: mikefarah/yq@v4.54.3
       - name: Validate k8s manifests
         working-directory: .
         run: |
