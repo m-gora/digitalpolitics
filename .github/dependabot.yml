@@ -1,5 +1,22 @@
 version: 2
 updates:
+  # Python dependencies of the app (uv / pyproject.toml + uv.lock).
+  # Clustered by dependency type: one PR for production bumps, one for
+  # dev-only bumps.
+  - package-ecosystem: uv
+    directory: "/app"
+    schedule:
+      interval: weekly
+    groups:
+      python-prod:
+        applies-to: version-updates
+        dependency-type: production
+      python-dev:
+        applies-to: version-updates
+        dependency-type: development
+    labels:
+      - dependencies
+      - python
   # Image-tag bumps for the k8s manifests (initContainer + app container pin
   # the same image, so they can never diverge).
   - package-ecosystem: docker
@@ -11,7 +28,19 @@ updates:
         applies-to: version-updates
         patterns:
           - "*"
+    labels:
+      - dependencies
+      - docker
+  # GitHub Actions updates, all in one PR.
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+    groups:
+      github-actions:
+        applies-to: version-updates
+        patterns:
+          - "*"
+    labels:
+      - dependencies
+      - github_actions
