@@ -40,11 +40,6 @@ spec:
             group: traefik.io
             kind: Middleware
             name: dpp-forwardauth
-        - type: ExtensionRef
-          extensionRef:
-            group: traefik.io
-            kind: Middleware
-            name: dpp-static-headers
       backendRefs:
         - name: dpp
           port: 8000

@@ -12,7 +12,7 @@ MAP_TILE_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
 # sidecar; override here if the proxy layer changes again.
 # Roles are not injected anywhere (the app never consumed X-User-Roles);
 # district scopes come from the groups claim expanded by dpp.gliederungen.
-DPP_USER_ID_HEADER=X-User-Id
+DPP_USER_ID_HEADER=X-Auth-Request-User
 DPP_USER_GROUPS_HEADER=X-Auth-Request-Groups
 DPP_USER_NAME_HEADER=X-Auth-Request-Preferred-Username
 DPP_USER_EMAIL_HEADER=X-Auth-Request-Email
