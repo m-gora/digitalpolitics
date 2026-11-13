@@ -45,7 +45,7 @@ jobs:
         run: uv run pytest
       - name: Build application image
         run: docker build --file Dockerfile --tag dpp:ci .
-      - uses: mikefarah/yq@v4.45.1
+      - uses: mikefarah/yq@v4.54.3
       - name: Validate k8s manifests
         working-directory: .
         run: |
