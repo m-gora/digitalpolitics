@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from datetime import UTC, datetime
 
@@ -429,6 +430,9 @@ async def transcribe(token: str, request: Request, session: AsyncSession = Depen
         raise HTTPException(413, "Audio muss kleiner als 5 MB sein.")
     try:
         result = await transcriber.transcribe(audio_bytes, f"recording.{extensions[content_type]}", content_type)
-    except Exception as exc:
-        raise HTTPException(502, "Transkription fehlgeschlagen.") from exc
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "Voice transcription failed (content_type=%s, size=%d)", content_type, len(audio_bytes)
+        )
+        raise HTTPException(502, "Transkription fehlgeschlagen.") from None
     return {"text": result[:500]}
