@@ -44,9 +44,11 @@ if settings.is_development:
     # This must never be wired up outside APP_ENV=development.
     from dpp.auth.dev_impersonation import DEV_PERSONAS, DevImpersonationMiddleware
     from dpp.auth.router import router as dev_router
+    from dpp.design.router import router as design_router
 
     app.add_middleware(DevImpersonationMiddleware, secret=settings.session_secret)
     app.include_router(dev_router)
+    app.include_router(design_router)
     templates.env.globals["dev_personas"] = DEV_PERSONAS
 
 

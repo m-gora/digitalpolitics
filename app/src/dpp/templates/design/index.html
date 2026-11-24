@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Designsystem · Digital Politics Platform{% endblock %}
+
+{# One swatch per token. The chip reads the CSS variable directly so this page
+   can never drift from input.css. #}
+{% macro swatch(token, hex, note="") -%}
+<div class="overflow-hidden rounded-card border border-line bg-white">
+  <div class="h-14 border-b border-line" style="background: var({{ token }})"></div>
+  <div class="px-3 py-2">
+    <code class="block break-all font-mono text-[0.7rem] text-ink-soft">{{ token }}</code>
+    <span class="block font-mono text-[0.7rem] text-ink-soft">{{ hex }}</span>
+    {% if note %}<span class="mt-1 block text-xs leading-snug text-ink-soft">{{ note }}</span>{% endif %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro specimen(label, class_name, sample) -%}
+<div class="border-b border-line py-3 last:border-b-0">
+  <div class="mb-1 flex flex-wrap items-baseline gap-x-3">
+    <code class="font-mono text-[0.7rem] text-brand-blue-700">.{{ class_name }}</code>
+    <span class="text-xs text-ink-soft">{{ label }}</span>
+  </div>
+  <div class="{{ class_name }}">{{ sample }}</div>
+</div>
+{%- endmacro %}
+
+{% block content %}
+<div class="mb-8">
+  <div class="rule mb-3"></div>
+  <p class="type-eyebrow">Designsystem v1 · Grundlagen</p>
+  <h1 class="type-h1 mt-1">Tokens und Typografie</h1>
+  <p class="type-body mt-2 max-w-form text-ink-soft">
+    Werte aus dem FDP-Designportal (Farbwelt, Typografie, Layout). Diese Seite ist
+    die Referenz: neue Oberflächen greifen hierauf zurück, statt Einzelklassen zu erfinden.
+    Nur in <code class="font-mono text-sm">APP_ENV=development</code> erreichbar.
+  </p>
+  <nav aria-label="Abschnitte" class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm font-bold text-brand-blue-700">
+    <a class="underline" href="#farbwelt">Farbwelt</a>
+    <a class="underline" href="#typografie">Typografie</a>
+    <a class="underline" href="#balken">Der Balken</a>
+    <a class="underline" href="#radien">Radien &amp; Schatten</a>
+    <a class="underline" href="#fokus">Fokus</a>
+  </nav>
+</div>
+
+<section id="farbwelt" class="mb-12">
+  <h2 class="type-h2">Farbwelt</h2>
+  <div class="rule mt-3 mb-5"></div>
+
+  <h3 class="type-h3 mb-1">Marke</h3>
+  <p class="type-body-sm mb-3 text-ink-soft">
+    Drei Markenfarben. Blau ist der bevorzugte Hintergrund, Gelb wirkt flankierend,
+    Cyan ist Signal und Balkenfarbe. Textfarbe immer nach dem höheren Kontrast wählen.
+  </p>
+  <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    {{ swatch("--color-brand-yellow", "#FFE000", "Primär · Gelb") }}
+    {{ swatch("--color-brand-blue", "#032D67", "Primär · Dunkelblau") }}
+    {{ swatch("--color-brand-cyan", "#00A7E7", "Sekundär · Cyan") }}
+    {{ swatch("--color-ink", "#000000", "Tertiär · Schwarz") }}
+    {{ swatch("--color-white", "#FFFFFF", "Tertiär · Weiß") }}
+  </div>
+
+  <h3 class="type-h3 mb-1">Interaktiv</h3>
+  <p class="type-body-sm mb-3 text-ink-soft">
+    Cyan auf Weiß erreicht nur 2,73:1 und ist damit kein Textton. Links und Hover
+    auf hellen Flächen nutzen <code class="font-mono text-xs">blue-700</code> (9,1:1
+    auf <code class="font-mono text-xs">blue-tint</code>).
+  </p>
+  <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    {{ swatch("--color-brand-blue-700", "#043C8B", "Links · Hover") }}
+    {{ swatch("--color-brand-blue-900", "#021B3E", "Dunkle Akzente") }}
+    {{ swatch("--color-surface", "#F4F6FA", "Seitenhintergrund") }}
+    {{ swatch("--color-surface-tint-blue", "#EAF0FA", "Ruhige Fläche") }}
+    {{ swatch("--color-surface-tint-cyan", "#E1F4FC", "Akzentfläche") }}
+  </div>
+
+  <h3 class="type-h3 mb-1">Text und Linien</h3>
+  <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    {{ swatch("--color-ink", "#000000", "Überschriften · 13,3:1 auf Weiß") }}
+    {{ swatch("--color-ink-soft", "#333333", "Fließtext · 11,7:1 auf Fläche") }}
+    {{ swatch("--color-line", "#D5DDEC", "Rahmen · Trenner") }}
+  </div>
+
+  <h3 class="type-h3 mb-1">Rückmeldung</h3>
+  <p class="type-body-sm mb-3 text-ink-soft">
+    Das Corporate Design definiert keine Fehlerfarben; diese Paare sind unsere
+    Ergänzung und erfüllen AA (≥ 4,8:1) auf ihrer jeweiligen Fläche.
+  </p>
+  <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    {{ swatch("--color-info", "#0369A1", "Info · 5,6:1") }}
+    {{ swatch("--color-success", "#15803D", "Erfolg · 4,8:1") }}
+    {{ swatch("--color-warning", "#B45309", "Warnung · 4,8:1") }}
+    {{ swatch("--color-danger", "#B91C1C", "Fehler · 5,9:1") }}
+  </div>
+</section>
+
+<section id="typografie" class="mb-12">
+  <h2 class="type-h2">Typografie</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-4 max-w-form text-ink-soft">
+    Public Sans. Überschriften laufen mit −2 % Laufweite und enger Zeilenhöhe,
+    wie im Designportal. Fließtext weicht bewusst auf 150 % Zeilenhöhe ab:
+    besser lesbar, und das Portal priorisiert selbst Lesbarkeit und Barrierefreiheit.
+  </p>
+  <div class="rounded-card border border-line bg-white px-5 py-2">
+    {{ specimen("Hero · Public Sans Black, 36–48 px", "type-display", "Mehr Mut zum Risiko") }}
+    {{ specimen("Seitentitel · Black, 30–40 px", "type-h1", "Kampagnen-Canvas") }}
+    {{ specimen("Abschnitt · Extrabold, 24 px", "type-h2", "Fragebogen auswerten") }}
+    {{ specimen("Zwischentitel · Extrabold, 18 px", "type-h3", "Rückmeldungen aus den Gliederungen") }}
+    {{ specimen("Fließtext · Regular, 16 px / 1.5", "type-body", "Politik vor Ort beginnt mit einem Gespräch – nicht mit einem Formular.") }}
+    {{ specimen("Sekundär · Regular, 14 px / 1.5", "type-body-sm", "Wird für Hilfetexte, Metadaten und Tabellenzellen verwendet.") }}
+    {{ specimen("Caption · 12 px / 1.4", "type-caption", "Zuletzt aktualisiert am 25.11.2026") }}
+  </div>
+</section>
+
+<section id="balken" class="mb-12">
+  <h2 class="type-h2">Der Balken</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-5 max-w-form text-ink-soft">
+    Signature-Element des Corporate Designs: 6 px hoch, standardmäßig Cyan,
+    Schutzraum 1/3 der Logohöhe. Im digitalen Interface oberhalb oder unterhalb
+    von Überschriften, zur Abschnittstrennung und zur Hervorhebung von Modulen.
+    Auf Weiß sparsam einsetzen.
+  </p>
+
+  <div class="grid gap-4 md:grid-cols-2">
+    <div class="rounded-card border border-line bg-white p-5">
+      <div class="rule mb-3"></div>
+      <p class="type-eyebrow">Eyebrow mit Balken</p>
+      <p class="type-body-sm mt-1 text-ink-soft">Balken oberhalb des Labels.</p>
+    </div>
+
+    <div class="rounded-card border border-line bg-white p-5">
+      <h3 class="type-h3">Mehr Mut zum Risiko</h3>
+      <div class="rule mt-3"></div>
+      <p class="type-body-sm mt-3 text-ink-soft">Balken als Unterstreichung der Headline.</p>
+    </div>
+
+    <div class="rounded-card bg-brand-blue p-5 text-white">
+      <div class="rule mb-3"></div>
+      <p class="type-eyebrow text-brand-yellow">Auf Dunkelblau</p>
+      <p class="type-body-sm mt-1 text-white/80">Hier wirkt der Balken am stärksten.</p>
+    </div>
+
+    <div class="rounded-card bg-brand-yellow p-5 text-brand-blue">
+      <div class="rule mb-3"></div>
+      <p class="type-eyebrow text-brand-blue">Auf Gelb</p>
+      <p class="type-body-sm mt-1">Gelb großflächig nur in Ausnahmefällen.</p>
+    </div>
+  </div>
+
+  <div class="mt-4 flex flex-wrap items-end gap-6 rounded-card border border-line bg-white p-5">
+    <div>
+      <div class="rule"></div>
+      <code class="mt-2 block font-mono text-[0.7rem] text-ink-soft">.rule</code>
+    </div>
+    <div>
+      <div class="rule rule--short"></div>
+      <code class="mt-2 block font-mono text-[0.7rem] text-ink-soft">.rule--short</code>
+    </div>
+    <div class="min-w-40 flex-1">
+      <div class="rule rule--full"></div>
+      <code class="mt-2 block font-mono text-[0.7rem] text-ink-soft">.rule--full</code>
+    </div>
+  </div>
+</section>
+
+<section id="radien" class="mb-12">
+  <h2 class="type-h2">Radien und Schatten</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-5 max-w-form text-ink-soft">
+    Eine Radienfamilie: 6 px für Bedienelemente und Karten, 12 px nur für Overlays.
+    Drei Schattenstufen, mehr braucht die Oberfläche nicht.
+  </p>
+  <div class="grid gap-4 md:grid-cols-3">
+    <div class="rounded-control border border-line bg-white p-4">
+      <code class="font-mono text-[0.7rem] text-ink-soft">--radius-control · 6px</code>
+      <p class="type-body-sm mt-2">Buttons, Eingaben, Auswahlfelder.</p>
+    </div>
+    <div class="rounded-card border border-line bg-white p-4">
+      <code class="font-mono text-[0.7rem] text-ink-soft">--radius-card · 6px</code>
+      <p class="type-body-sm mt-2">Karten, Panels, Listeneinträge.</p>
+    </div>
+    <div class="rounded-overlay border border-line bg-white p-4">
+      <code class="font-mono text-[0.7rem] text-ink-soft">--radius-overlay · 12px</code>
+      <p class="type-body-sm mt-2">Dialoge und Overlays.</p>
+    </div>
+  </div>
+  <div class="mt-4 grid gap-4 md:grid-cols-3">
+    <div class="rounded-card bg-white p-4 shadow-card">
+      <code class="font-mono text-[0.7rem] text-ink-soft">shadow-card</code>
+      <p class="type-body-sm mt-2">Standardkarte.</p>
+    </div>
+    <div class="rounded-card bg-white p-4 shadow-raised">
+      <code class="font-mono text-[0.7rem] text-ink-soft">shadow-raised</code>
+      <p class="type-body-sm mt-2">Hover, schwebende Elemente.</p>
+    </div>
+    <div class="rounded-overlay bg-white p-4 shadow-overlay">
+      <code class="font-mono text-[0.7rem] text-ink-soft">shadow-overlay</code>
+      <p class="type-body-sm mt-2">Dialoge.</p>
+    </div>
+  </div>
+</section>
+
+<section id="fokus" class="mb-12">
+  <h2 class="type-h2">Fokus</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <div class="rounded-card border border-line bg-white p-5">
+    <p class="type-body-sm mb-4 text-ink-soft">
+      Ein Fokusring für die ganze Anwendung: 2 px Cyan, 2 px Abstand.
+      Mit <kbd class="rounded-control border border-line px-1.5 py-0.5 font-mono text-xs">Tab</kbd>
+      durch die Beispiele gehen.
+    </p>
+    <div class="flex flex-wrap items-center gap-3">
+      <button type="button" class="rounded-control bg-brand-blue px-4 py-2 font-bold text-white">Primär</button>
+      <button type="button" class="rounded-control bg-surface-tint-blue px-4 py-2 font-bold text-brand-blue">Sekundär</button>
+      <a href="#fokus" class="font-bold text-brand-blue-700 underline">Ein Link</a>
+      <input class="rounded-control border border-line bg-white px-3 py-2" value="Eingabefeld" aria-label="Beispiel-Eingabefeld" />
+    </div>
+  </div>
+</section>
+
+<section class="mb-4">
+  <h2 class="type-h2">Noch offen</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <ul class="type-body-sm list-disc pl-5 text-ink-soft">
+    <li>Bausteine: Button, Badge, Card, Formularfeld, Alert, Dialog, Stat.</li>
+    <li>Muster: Seitenkopf, Filterleiste, Formularabschnitt, Listenzeile, Stepper.</li>
+    <li>Migration der Templates; solange mischen Seiten alte Grays und neue Tokens.</li>
+  </ul>
+</section>
+{% endblock %}
