@@ -1,11 +1,181 @@
 @import "tailwindcss";
 
-/* Brand tokens from spec arch-07 (party design instructions). */
+/* Design system v1. Token values come from the FDP Designportal
+   (Designportal > Farbwelt / Typografie / Layout) and spec arch-07.
+   Anything visual that is repeated in more than one template belongs here,
+   not in a one-off utility string. See docs/design-system.md. */
 @theme {
+  /* --- Marke (official corporate design) ------------------------------- */
   --color-brand-yellow: #ffe000;
   --color-brand-blue: #032d67;
-  --color-brand-cyan: #00a7e7;
+  --color-brand-blue-700: #043c8b; /* links/hover on light surfaces */
+  --color-brand-blue-900: #021b3e;
+  --color-brand-cyan: #00a7e7; /* graphics + the Balken, never small text on white */
+
+  /* --- Flächen ---------------------------------------------------------- */
+  --color-surface: #f4f6fa;
+  --color-surface-tint-blue: #eaf0fa;
+  --color-surface-tint-cyan: #e1f4fc;
+  --color-line: #d5ddec;
+
+  /* --- Text ------------------------------------------------------------- */
+  --color-ink: #000000;
+  --color-ink-soft: #333333;
+
+  /* --- Rückmeldung (app-owned, CD has no error palette) ------------------ */
+  --color-info: #0369a1;
+  --color-info-surface: #f0f9ff;
+  --color-info-line: #bae6fd;
+  --color-success: #15803d;
+  --color-success-surface: #f0fdf4;
+  --color-success-line: #bbf7d0;
+  --color-warning: #b45309;
+  --color-warning-surface: #fffbeb;
+  --color-warning-line: #fde68a;
+  --color-danger: #b91c1c;
+  --color-danger-surface: #fef2f2;
+  --color-danger-line: #fecaca;
+
+  /* --- Radien ------------------------------------------------------------ */
+  --radius-control: 6px;
+  --radius-card: 6px;
+  --radius-overlay: 12px;
+
+  /* --- Schatten ---------------------------------------------------------- */
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.06);
+  --shadow-raised: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);
+  --shadow-overlay: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* --- Container --------------------------------------------------------- */
+  --container-admin: 64rem;
+  --container-form: 48rem;
+  --container-kiosk: 52rem;
+
+  /* --- Bewegung ---------------------------------------------------------- */
+  --ease-standard: cubic-bezier(0.2, 0.6, 0.2, 1);
+
   --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-ink-soft);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  /* One focus treatment for the whole app. Components may tighten the
+     offset, but nobody should be removing the outline. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-cyan);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-brand-yellow);
+    color: var(--color-brand-blue);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Type scale. Headlines follow the corporate design (tight tracking,
+     line-height 80-102%). Body deviates deliberately: the CD allows
+     110-130%, but UI copy reads better at 150%. */
+  .type-display {
+    font-size: clamp(2.25rem, 1.4rem + 3.4vw, 3rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.02;
+    color: var(--color-brand-blue);
+  }
+
+  .type-h1 {
+    font-size: clamp(1.875rem, 1.4rem + 1.8vw, 2.5rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    color: var(--color-brand-blue);
+  }
+
+  .type-h2 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: var(--color-brand-blue);
+  }
+
+  .type-h3 {
+    font-size: 1.125rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.3;
+    color: var(--color-brand-blue);
+  }
+
+  .type-body {
+    font-size: 1rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.5;
+  }
+
+  .type-body-sm {
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  .type-caption {
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--color-ink-soft);
+  }
+
+  .type-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    line-height: 1.3;
+    text-transform: uppercase;
+    color: var(--color-brand-blue-700);
+  }
+
+  /* "Der Balken": signature element. Default colour is cyan; height and
+     spacing follow the Designportal (6px, 1/3 logo height clear space). */
+  .rule {
+    display: block;
+    width: 3.25rem;
+    height: 6px;
+    background-color: var(--color-brand-cyan);
+    border-radius: 0;
+  }
+
+  .rule--short {
+    width: 1.5rem;
+  }
+
+  .rule--full {
+    width: 100%;
+  }
 }
 
 .htmx-indicator {
