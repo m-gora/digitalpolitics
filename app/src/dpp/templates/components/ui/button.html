@@ -1,0 +1,27 @@
+{# Button primitives.
+
+   props:
+     label       visible text (already translated by the caller)
+     variant     primary | secondary | danger | warning | ghost
+     size        sm | md | lg            (lg = 48px, use it in the kiosk)
+     type        submit | button | reset
+     disabled    bool
+     icon_left   optional glyph, rendered aria-hidden
+     icon_right  optional glyph, rendered aria-hidden
+     block       full width (link_button only)
+     attrs       trusted developer markup only: hx-*, data-*, id, name, value
+
+   Never pass user data through `attrs`; it is emitted unescaped.
+#}
+
+{% macro button(label, variant="primary", size="md", type="submit", disabled=False, icon_left=None, icon_right=None, attrs="") -%}
+<button type="{{ type }}" class="btn btn--{{ variant }} btn--{{ size }}"{% if disabled %} disabled{% endif %}{% if attrs %} {{ attrs|safe }}{% endif %}>{% if icon_left %}<span aria-hidden="true">{{ icon_left }}</span>{% endif %}{{ label }}{% if icon_right %}<span aria-hidden="true">{{ icon_right }}</span>{% endif %}</button>
+{%- endmacro %}
+
+{% macro link_button(label, href, variant="primary", size="md", icon_left=None, icon_right=None, block=False, attrs="") -%}
+<a href="{{ href }}" class="btn btn--{{ variant }} btn--{{ size }}{% if block %} btn--block{% endif %}"{% if attrs %} {{ attrs|safe }}{% endif %}>{% if icon_left %}<span aria-hidden="true">{{ icon_left }}</span>{% endif %}{{ label }}{% if icon_right %}<span aria-hidden="true">{{ icon_right }}</span>{% endif %}</a>
+{%- endmacro %}
+
+{% macro icon_button(label, icon, size="md", type="button", attrs="") -%}
+<button type="{{ type }}" class="icon-btn{% if size == "sm" %} icon-btn--sm{% endif %}" aria-label="{{ label }}"{% if attrs %} {{ attrs|safe }}{% endif %}><span aria-hidden="true">{{ icon }}</span></button>
+{%- endmacro %}

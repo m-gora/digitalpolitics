@@ -1,0 +1,11 @@
+{# Empty list placeholder.
+
+   props:
+     message    text
+     variant    dashed | plain     (plain = no border, left aligned)
+     class_name spacing utilities
+#}
+
+{% macro empty_state(message, variant="dashed", class_name="") -%}
+<p class="empty-state{% if variant == "plain" %} empty-state--plain{% endif %}{% if class_name %} {{ class_name }}{% endif %}">{{ message }}</p>
+{%- endmacro %}

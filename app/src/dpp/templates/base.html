@@ -125,7 +125,6 @@
     });
   </script>
 
-  {% if identity %}
   <script>
     document.body.addEventListener("click", (event) => {
       const trigger = event.target.closest("[data-open-dialog]");
@@ -133,7 +132,10 @@
       const dialog = document.getElementById(trigger.dataset.openDialog);
       if (dialog instanceof HTMLDialogElement && !dialog.open) dialog.showModal();
     });
+  </script>
 
+  {% if identity %}
+  <script>
     // Keep one SSE connection across htmx navigation; read the current main
     // element each time because boosted navigation replaces it.
     const dppEvents = new EventSource("/events/canvas");

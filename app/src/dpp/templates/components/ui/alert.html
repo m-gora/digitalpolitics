@@ -1,0 +1,15 @@
+{# Inline status message.
+
+   props:
+     message   text
+     tone      info | success | warning | danger
+     title     optional bold first line
+
+   No role attribute by default: static page copy must not be announced.
+   When an alert is inserted dynamically, wrap it in a container with
+   role="status" (info/success) or role="alert" (danger) at the call site.
+#}
+
+{% macro alert(message, tone="info", title=None) -%}
+<div class="alert alert--{{ tone }}">{% if title %}<p class="alert__title">{{ title }}</p>{% endif %}<p>{{ message }}</p></div>
+{%- endmacro %}

@@ -1,0 +1,59 @@
+{# Form controls. One macro per control so the label, help text, error text and
+   ARIA wiring always travel together.
+
+   Shared props:
+     name, label, id (defaults to name), required, help, error
+     attrs  trusted developer markup only (hx-*, data-*, autocomplete, inputmode)
+
+   select() takes `options` as a list of {value, label, selected?, disabled?}.
+#}
+
+{% macro _described_by(field_id, help, error) -%}
+{%- set ids = [] -%}
+{%- if help %}{% set _ = ids.append(field_id ~ "-help") %}{% endif -%}
+{%- if error %}{% set _ = ids.append(field_id ~ "-error") %}{% endif -%}
+{%- if ids %} aria-describedby="{{ ids|join(' ') }}"{% endif -%}
+{%- endmacro %}
+
+{% macro text_input(name, label, value="", type="text", id=None, required=False, placeholder="", help=None, error=None, maxlength=None, attrs="") -%}
+{%- set field_id = id or name -%}
+<div class="field">
+  <label class="field__label" for="{{ field_id }}">{{ label }}</label>
+  <input class="input" id="{{ field_id }}" name="{{ name }}" type="{{ type }}" value="{{ value }}"{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}{% if required %} required{% endif %}{% if error %} aria-invalid="true"{% endif %}{% if maxlength %} maxlength="{{ maxlength }}"{% endif %}{{ _described_by(field_id, help, error) }}{% if attrs %} {{ attrs|safe }}{% endif %} />
+  {% if help %}<p class="field__help" id="{{ field_id }}-help">{{ help }}</p>{% endif %}
+  {% if error %}<p class="field__error" id="{{ field_id }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro textarea(name, label, value="", rows=4, id=None, required=False, placeholder="", help=None, error=None, maxlength=None, attrs="") -%}
+{%- set field_id = id or name -%}
+<div class="field">
+  <label class="field__label" for="{{ field_id }}">{{ label }}</label>
+  <textarea class="textarea" id="{{ field_id }}" name="{{ name }}" rows="{{ rows }}"{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}{% if required %} required{% endif %}{% if error %} aria-invalid="true"{% endif %}{% if maxlength %} maxlength="{{ maxlength }}"{% endif %}{{ _described_by(field_id, help, error) }}{% if attrs %} {{ attrs|safe }}{% endif %}>{{ value }}</textarea>
+  {% if help %}<p class="field__help" id="{{ field_id }}-help">{{ help }}</p>{% endif %}
+  {% if error %}<p class="field__error" id="{{ field_id }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro select(name, label, options, id=None, required=False, help=None, error=None, attrs="") -%}
+{%- set field_id = id or name -%}
+<div class="field">
+  <label class="field__label" for="{{ field_id }}">{{ label }}</label>
+  <select class="select" id="{{ field_id }}" name="{{ name }}"{% if required %} required{% endif %}{% if error %} aria-invalid="true"{% endif %}{{ _described_by(field_id, help, error) }}{% if attrs %} {{ attrs|safe }}{% endif %}>
+    {% for option in options %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}{% if option.disabled %} disabled{% endif %}>{{ option.label }}</option>{% endfor %}
+  </select>
+  {% if help %}<p class="field__help" id="{{ field_id }}-help">{{ help }}</p>{% endif %}
+  {% if error %}<p class="field__error" id="{{ field_id }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro checkbox(name, label, checked=False, id=None, help=None) -%}
+{%- set field_id = id or name -%}
+<div class="field">
+  <div class="checkbox-row">
+    <input class="checkbox" type="checkbox" id="{{ field_id }}" name="{{ name }}"{% if checked %} checked{% endif %}{% if help %} aria-describedby="{{ field_id }}-help"{% endif %} />
+    <label class="checkbox-row__label" for="{{ field_id }}">{{ label }}</label>
+  </div>
+  {% if help %}<p class="field__help" id="{{ field_id }}-help">{{ help }}</p>{% endif %}
+</div>
+{%- endmacro %}

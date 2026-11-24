@@ -1,0 +1,31 @@
+{# Native <dialog> shell with the design system chrome.
+
+     {% call dialog(id="edit-district", title="Gliederung bearbeiten") %}
+       ...form...
+     {% endcall %}
+
+   props:
+     id          element id; the title gets id + "-title"
+     title       dialog heading
+     description optional subline
+     close_label accessible label for the close button
+
+   The close button is a method="dialog" form, so Escape and the button both
+   close natively. Open it with data-open-dialog="<id>" (handled in base.html)
+   or by calling dialog.showModal().
+#}
+
+{% macro dialog(id, title, description=None, close_label="Dialog schließen") -%}
+<dialog id="{{ id }}" class="dialog" aria-labelledby="{{ id }}-title">
+  <div class="dialog__header">
+    <div class="dialog__heading">
+      <h2 id="{{ id }}-title" class="dialog__title">{{ title }}</h2>
+      {% if description %}<p class="dialog__description">{{ description }}</p>{% endif %}
+    </div>
+    <form method="dialog" hx-boost="false">
+      <button type="submit" class="icon-btn icon-btn--sm" aria-label="{{ close_label }}"><span aria-hidden="true">&times;</span></button>
+    </form>
+  </div>
+  <div class="dialog__body">{{ caller() }}</div>
+</dialog>
+{%- endmacro %}
