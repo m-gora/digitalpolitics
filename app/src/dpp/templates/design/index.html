@@ -331,8 +331,8 @@
   <div class="rule mt-3 mb-5"></div>
   <p class="type-body mb-5 max-w-form text-ink-soft">
     Label, Hilfetext, Fehlertext und die ARIA-Verknüpfung gehören zum Feld — deshalb
-    ein Makro pro Feldtyp statt loser Inputs. Größe <code class="font-mono text-xs">lg</code>
-    ist die 48px-Variante für Touch-Ziele.
+    ein Makro pro Feldtyp statt loser Inputs. Ein Fehler setzt automatisch
+    <code class="font-mono text-xs">aria-invalid</code> und verknüpft den Fehlertext.
   </p>
 
   {% set district_options = [
@@ -340,6 +340,11 @@
     {"value": "bv-mitte", "label": "Bezirksverband Mitte"},
     {"value": "ov-kreuzberg", "label": "Ortsverband Kreuzberg"},
     {"value": "lv-hamburg", "label": "Landesverband Hamburg", "disabled": true},
+  ] %}
+  {% set status_options = [
+    {"value": "draft", "label": "Entwurf", "selected": true},
+    {"value": "active", "label": "Aktiv"},
+    {"value": "closed", "label": "Geschlossen"},
   ] %}
 
   <div class="grid gap-6 md:grid-cols-2">
@@ -365,7 +370,7 @@
       <p class="type-body-sm mb-4 text-ink-soft">Die komponierte Form: Karte, Felder, Aktionen.</p>
       <div class="grid gap-4 md:grid-cols-2">
         {{ text_input("titel", "Titel", required=True) }}
-        {{ select("status", "Status", district_options) }}
+        {{ select("status", "Status", status_options) }}
       </div>
       <div class="mt-5 flex flex-wrap gap-3">
         {{ button("Speichern") }}
