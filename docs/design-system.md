@@ -114,6 +114,42 @@ One global treatment in the base layer: `outline: 2px solid var(--color-brand-cy
 with `outline-offset: 2px`. Components may tighten the offset; they must not
 remove the outline.
 
+## Components
+
+Thin Jinja adapters in `app/src/dpp/templates/components/ui/`. Import what a
+template needs; there is no global registry.
+
+```jinja
+{% from "components/ui/button.html" import button, link_button %}
+{% from "components/ui/card.html" import card %}
+
+{{ button("Speichern") }}
+{% call card(padding="lg") %}…{% endcall %}
+```
+
+| Component | Classes | Macro | Notes |
+|---|---|---|---|
+| Button | `.btn`, `--primary/--secondary/--danger/--warning/--ghost`, `--sm/--md/--lg`, `--block` | `button()`, `link_button()` | primary hover darkens to `blue-700` |
+| Icon button | `.icon-btn`, `--sm` | `icon_button()` | requires an `aria-label` |
+| Badge | `.badge`, `--neutral/--info/--warning/--success/--danger`, `--sm/--md/--lg` | `badge()` | |
+| Card | `.card`, `--default/--outlined/--interactive`, `--pad-none/sm/md/lg`, `__header/__title/__body/__footer` | `card()` (block) | `padding="none"` when using sections |
+| Alert | `.alert`, `--info/--success/--warning/--danger` | `alert()` | caller adds `role` only for dynamic content |
+| Dialog | `.dialog`, `__header/__title/__description/__heading/__body/__footer` | `dialog()` (block) | native `<dialog>`; open via `data-open-dialog` |
+| Field | `.field`, `__label/__help/__error` | part of the control macros | wires `aria-describedby`/`aria-invalid` |
+| Input / Textarea / Select / Checkbox | `.input`, `.textarea`, `.select`, `.checkbox`, `.checkbox-row` | `text_input()`, `textarea()`, `select()`, `checkbox()` | `select()` takes `options` as `{value,label,selected?,disabled?}` |
+| Back link | `.back-link` | `back_link()` | arrow is `aria-hidden` |
+| Empty state | `.empty-state`, `--plain` | `empty_state()` | |
+| Stat | `.stat__value/__label/__hint` | `stat()` | score cards, summary tiles |
+
+Conventions:
+
+- Appearance lives in CSS; macros only emit classes and structure.
+- `attrs="…"` passes htmx/`data-*`/`disabled` through unescaped — developer
+  literals only, never user data.
+- `icon_left`/`icon_right` take glyph characters (`+`, `→`, `×`), not HTML
+  entities; they are escaped like normal text.
+- Optional `class_name`/`class` parameters are for layout utilities only.
+
 ## Rules
 
 1. No raw hex in templates. Tokens or component classes only.
@@ -130,10 +166,10 @@ remove the outline.
 | Layer | State |
 |---|---|
 | Tokens, type scale, base layer, Balken | **done** (v1 foundations) |
-| Styleguide `/_design` | foundations render; components pending |
-| Primitives (button, badge, card, field/input, alert, dialog, back link, empty state, stat) | next |
-| Patterns (page header, filter bar, form section, action bar, list row, stepper) | after primitives |
-| Template migration | after the primitives review gate |
+| Primitives: button, icon button, badge, card, alert, dialog, fields, back link, empty state, stat | **done** |
+| Styleguide `/_design` | foundations + primitives render |
+| Patterns (page header, filter bar, form section, action bar, list row, stepper) | next |
+| Template migration | after the pattern review gate |
 | Legacy CSS (`help-badge`, `district-editor-dialog`, module carousel) | folded into components during migration |
 
 ## Portability
