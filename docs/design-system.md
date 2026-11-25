@@ -150,6 +150,20 @@ Conventions:
   entities; they are escaped like normal text.
 - Optional `class_name`/`class` parameters are for layout utilities only.
 
+## Patterns
+
+Larger compositions live in `app/src/dpp/templates/components/patterns/`. A
+pattern earns a macro once it appears in three places; until then it is a
+composition of primitives.
+
+| Pattern | Classes | Macro | Notes |
+|---|---|---|---|
+| Page header | `.page-header`, `__main/__meta/__description/__actions` | `page_header()` (block for actions) | eyebrow, title, meta, description left; actions right |
+| Filter bar | `.filter-bar`, `__grow/__fixed` | `filter_bar()` (block) | stacks below `sm`, one row above; `role="search"` |
+| List row | `.list-row`, `--interactive/--split`, `__head/__body/__title/__meta/__aside` | `list_row()` (block) | `href` toggles link + hover; `split` for body/aside on wide screens |
+| Action bar | `.action-bar`, `__group` | `action_bar()` (block) | top rule; groups push primary right |
+| Stepper | `.stepper`, `__item/--current/--done/--upcoming`, `__number/__sep` | `stepper()` | data-driven; `state` drives current/done/upcoming |
+
 ## Rules
 
 1. No raw hex in templates. Tokens or component classes only.
@@ -167,9 +181,10 @@ Conventions:
 |---|---|
 | Tokens, type scale, base layer, Balken | **done** (v1 foundations) |
 | Primitives: button, icon button, badge, card, alert, dialog, fields, back link, empty state, stat | **done** |
-| Styleguide `/_design` | foundations + primitives render |
-| Patterns (page header, filter bar, form section, action bar, list row, stepper) | next |
-| Template migration | after the pattern review gate |
+| Styleguide `/_design` | foundations, primitives and patterns render |
+| Patterns: page header, filter bar, list row, action bar, stepper | **done** (v1) |
+| Template migration | next |
+| Status banner | keep using `alert()`; add a pattern only if a page needs more than one |
 | Legacy CSS (`help-badge`, `district-editor-dialog`, module carousel) | folded into components during migration |
 
 ## Portability

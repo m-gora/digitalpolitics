@@ -9,6 +9,11 @@
 {% from "components/ui/empty_state.html" import empty_state %}
 {% from "components/ui/field.html" import checkbox, select, text_input, textarea %}
 {% from "components/ui/stat.html" import stat %}
+{% from "components/patterns/action_bar.html" import action_bar %}
+{% from "components/patterns/filter_bar.html" import filter_bar %}
+{% from "components/patterns/list_row.html" import list_row %}
+{% from "components/patterns/page_header.html" import page_header %}
+{% from "components/patterns/stepper.html" import stepper %}
 
 {% block title %}Designsystem · Digital Politics Platform{% endblock %}
 
@@ -36,6 +41,17 @@
 {%- endmacro %}
 
 {% block content %}
+{% set district_options = [
+  {"value": "lv-berlin", "label": "Landesverband Berlin", "selected": true},
+  {"value": "bv-mitte", "label": "Bezirksverband Mitte"},
+  {"value": "ov-kreuzberg", "label": "Ortsverband Kreuzberg"},
+  {"value": "lv-hamburg", "label": "Landesverband Hamburg", "disabled": true},
+] %}
+{% set status_options = [
+  {"value": "draft", "label": "Entwurf", "selected": true},
+  {"value": "active", "label": "Aktiv"},
+  {"value": "closed", "label": "Geschlossen"},
+] %}
 <div class="mb-8">
   <div class="rule mb-3"></div>
   <p class="type-eyebrow">Designsystem v1 · Grundlagen</p>
@@ -335,18 +351,6 @@
     <code class="font-mono text-xs">aria-invalid</code> und verknüpft den Fehlertext.
   </p>
 
-  {% set district_options = [
-    {"value": "lv-berlin", "label": "Landesverband Berlin", "selected": true},
-    {"value": "bv-mitte", "label": "Bezirksverband Mitte"},
-    {"value": "ov-kreuzberg", "label": "Ortsverband Kreuzberg"},
-    {"value": "lv-hamburg", "label": "Landesverband Hamburg", "disabled": true},
-  ] %}
-  {% set status_options = [
-    {"value": "draft", "label": "Entwurf", "selected": true},
-    {"value": "active", "label": "Aktiv"},
-    {"value": "closed", "label": "Geschlossen"},
-  ] %}
-
   <div class="grid gap-6 md:grid-cols-2">
     <div class="space-y-5 rounded-card border border-line bg-white p-5">
       <p class="type-eyebrow">Standard</p>
@@ -430,26 +434,109 @@
     es ein eigenes Makro; vorher bleibt es Komposition.
   </p>
 
-  <div class="grid gap-4 md:grid-cols-2">
-    <div class="rounded-card border border-line bg-white p-5">
-      <p class="type-eyebrow mb-3">Zurück-Link</p>
-      {{ back_link("#muster", "Zurück zur Kampagnenliste") }}
+  <div class="space-y-8">
+    <div>
+      <p class="type-eyebrow mb-3">Seitenkopf</p>
+      <div class="rounded-card border border-line bg-white p-5">
+        {% call page_header("Kampagnen", eyebrow="Campaign Canvas", description="Alle Kampagnen der Gliederung, nach Status und Thema durchsuchbar.") %}
+          {{ button("Neue Kampagne") }}
+        {% endcall %}
+      </div>
     </div>
 
-    <div class="rounded-card border border-line bg-white p-5">
-      <p class="type-eyebrow mb-3">Leerer Zustand</p>
-      {{ empty_state("Noch keine Kampagnen angelegt.") }}
+    <div>
+      <p class="type-eyebrow mb-3">Filterleiste</p>
+      {% call filter_bar(action="#muster") %}
+        <div class="filter-bar__grow">
+          {{ text_input("q", "Kampagnen durchsuchen", placeholder="Thema, Ziel, Zusammenfassung …") }}
+        </div>
+        <div class="filter-bar__fixed">
+          {{ select("filter-status", "Status", status_options) }}
+        </div>
+        <div class="filter-bar__fixed">
+          {{ button("Filtern", variant="secondary") }}
+        </div>
+      {% endcall %}
     </div>
 
-    {% call card() %}
-      {{ stat("0.87", "Domain-Ähnlichkeit", "Kosinus-Ähnlichkeit zum Grundsatzprogramm") }}
-    {% endcall %}
+    <div>
+      <p class="type-eyebrow mb-3">Listenzeilen</p>
+      <div class="space-y-3">
+        {% call list_row(href="#muster", split=True) %}
+          <div class="list-row__body">
+            <h3 class="list-row__title">Bildung stärken</h3>
+            <p class="list-row__meta">Bezirksverband Friedrichshain-Kreuzberg · zuletzt bearbeitet vor 2 Tagen</p>
+          </div>
+          <div class="list-row__aside">
+            {{ badge("Laufend", tone="info") }}
+            <span class="text-sm font-bold text-brand-blue">72 %</span>
+          </div>
+        {% endcall %}
+        {% call list_row(href="#muster", split=True) %}
+          <div class="list-row__body">
+            <h3 class="list-row__title">Mietpreisbremse nachschärfen</h3>
+            <p class="list-row__meta">Landesverband Berlin · Entwurf seit gestern</p>
+          </div>
+          <div class="list-row__aside">
+            {{ badge("Entwurf", tone="neutral") }}
+            <span class="text-sm font-bold text-brand-blue">12 %</span>
+          </div>
+        {% endcall %}
+        {% call list_row() %}
+          <h3 class="list-row__title">Nicht verlinkte Zeile</h3>
+          <p class="list-row__meta">Ohne <code class="font-mono text-xs">href</code> bleibt die Zeile statisch.</p>
+        {% endcall %}
+      </div>
+    </div>
 
-    {% call card(variant="interactive") %}
-      <h3 class="card__title">Bildung stärken</h3>
-      <p class="type-body-sm mt-1 text-ink-soft">Bezirksverband Friedrichshain-Kreuzberg</p>
-      <div class="mt-3">{{ badge("Laufend", tone="info") }}</div>
-    {% endcall %}
+    <div>
+      <p class="type-eyebrow mb-3">Aktionsleiste</p>
+      <div class="rounded-card border border-line bg-white p-5">
+        {% call action_bar() %}
+          <div class="action-bar__group">
+            {{ button("Löschen", variant="danger") }}
+          </div>
+          <div class="action-bar__group">
+            {{ button("Abbrechen", variant="secondary") }}
+            {{ button("Speichern") }}
+          </div>
+        {% endcall %}
+      </div>
+    </div>
+
+    <div>
+      <p class="type-eyebrow mb-3">Stepper</p>
+      <div class="rounded-card border border-line bg-white p-5">
+        {{ stepper([
+          {"label": "Gliederung", "href": "#muster", "state": "done"},
+          {"label": "Zieldefinition", "href": "#muster", "state": "current"},
+          {"label": "Zielgruppen & Kanäle"},
+          {"label": "Material, Organisation & Storytelling"},
+        ]) }}
+      </div>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+      <div class="rounded-card border border-line bg-white p-5">
+        <p class="type-eyebrow mb-3">Zurück-Link</p>
+        {{ back_link("#muster", "Zurück zur Kampagnenliste") }}
+      </div>
+
+      <div class="rounded-card border border-line bg-white p-5">
+        <p class="type-eyebrow mb-3">Leerer Zustand</p>
+        {{ empty_state("Noch keine Kampagnen angelegt.") }}
+      </div>
+
+      {% call card() %}
+        {{ stat("0.87", "Domain-Ähnlichkeit", "Kosinus-Ähnlichkeit zum Grundsatzprogramm") }}
+      {% endcall %}
+
+      {% call card(variant="interactive") %}
+        <h3 class="card__title">Bildung stärken</h3>
+        <p class="type-body-sm mt-1 text-ink-soft">Bezirksverband Friedrichshain-Kreuzberg</p>
+        <div class="mt-3">{{ badge("Laufend", tone="info") }}</div>
+      {% endcall %}
+    </div>
   </div>
 </section>
 
@@ -475,7 +562,6 @@
   <h2 class="type-h2">Noch offen</h2>
   <div class="rule mt-3 mb-5"></div>
   <ul class="type-body-sm list-disc pl-5 text-ink-soft">
-    <li>Muster: Seitenkopf, Filterleiste, Listenzeile, Stepper, Statusbanner.</li>
     <li>Migration der Templates: solange mischen Seiten alte Grays und neue Tokens.</li>
     <li>Legacy-CSS (<code class="font-mono text-xs">help-badge</code>, <code class="font-mono text-xs">district-editor-dialog</code>, Modulkarussell) in die Bausteine überführen.</li>
   </ul>

@@ -1,0 +1,18 @@
+{# Filter bar: the search/status row above a result list.
+
+     {% call filter_bar(action="/campaigns", method="get") %}
+       <div class="filter-bar__grow">{{ text_input("q", "Kampagnen durchsuchen") }}</div>
+       <div class="filter-bar__fixed">{{ select("status", "Status", status_options) }}</div>
+     {% endcall %}
+
+   props:
+     action      form action
+     method      get by default
+     class_name  layout utilities only
+#}
+
+{% macro filter_bar(action, method="get", class_name="") -%}
+<form method="{{ method }}" action="{{ action }}" role="search" class="filter-bar{% if class_name %} {{ class_name }}{% endif %}">
+  {{ caller() }}
+</form>
+{%- endmacro %}

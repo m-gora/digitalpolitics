@@ -1,0 +1,28 @@
+{# Stepper: progress across a multi-step flow.
+
+     {{ stepper([
+       {"label": "Gliederung", "href": "/campaigns/new", "state": "done"},
+       {"label": "Zieldefinition", "state": "current"},
+       {"label": "Zielgruppen & Kanäle"},
+       {"label": "Material, Organisation & Storytelling"},
+     ]) }}
+
+   Each step: {label, href?, state?} where state is "current" or "done".
+   Steps without href render as plain text; the whole list is a nav landmark.
+#}
+
+{% macro stepper(steps, label="Fortschritt") -%}
+<nav aria-label="{{ label }}">
+  <ol class="stepper">
+    {% for step in steps %}
+      {% set state = step.state or "upcoming" %}
+      <li class="stepper__item stepper__item--{{ state }}"
+          {% if state == 'current' %}aria-current="step"{% endif %}>
+        <span class="stepper__number" aria-hidden="true">{{ loop.index }}</span>
+        {% if step.href %}<a href="{{ step.href }}">{{ step.label }}</a>{% else %}{{ step.label }}{% endif %}
+      </li>
+      {% if not loop.last %}<li class="stepper__sep" aria-hidden="true">→</li>{% endif %}
+    {% endfor %}
+  </ol>
+</nav>
+{%- endmacro %}

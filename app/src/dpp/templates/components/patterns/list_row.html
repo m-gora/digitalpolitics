@@ -1,0 +1,20 @@
+{# One entry in a result list.
+
+     {% call list_row(href="/campaigns/" ~ c.id, split=True) %}
+       <div class="list-row__body">
+         <h2 class="list-row__title">{{ c.thema }}</h2>
+         <p class="list-row__meta">{{ c.ai_summary }}</p>
+       </div>
+       <div class="list-row__aside">{{ badge(c.status.label) }}</div>
+     {% endcall %}
+
+   props:
+     href        link target; omit for a non-interactive row
+     split       horizontal body/aside layout from sm upwards
+     class_name  layout utilities only
+#}
+
+{% macro list_row(href=None, split=False, class_name="") -%}
+{%- set classes = "list-row" ~ (" list-row--split" if split else "") ~ (" list-row--interactive" if href else "") ~ (" " ~ class_name if class_name else "") -%}
+{% if href %}<a href="{{ href }}" class="{{ classes }}">{{ caller() }}</a>{% else %}<div class="{{ classes }}">{{ caller() }}</div>{% endif %}
+{%- endmacro %}

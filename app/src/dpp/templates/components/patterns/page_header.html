@@ -1,0 +1,28 @@
+{# Page header. Use as a block when there are actions on the right:
+
+     {% call page_header("Kampagnen", eyebrow="Campaign Canvas") %}
+       {{ link_button("Neue Kampagne", "/campaigns/new") }}
+     {% endcall %}
+
+   Without actions, call it directly:
+
+     {{ page_header("Initiativen", description="…") }}
+
+   props:
+     title        h1 text
+     eyebrow      optional kicker above the title
+     description  optional lead paragraph
+     meta         optional small line (district, author, timestamp)
+#}
+
+{% macro page_header(title, eyebrow=None, description=None, meta=None) -%}
+<div class="page-header">
+  <div class="page-header__main">
+    {% if eyebrow %}<p class="type-eyebrow">{{ eyebrow }}</p>{% endif %}
+    <h1 class="type-h1{% if eyebrow %} mt-1{% endif %}">{{ title }}</h1>
+    {% if meta %}<p class="page-header__meta">{{ meta }}</p>{% endif %}
+    {% if description %}<p class="page-header__description">{{ description }}</p>{% endif %}
+  </div>
+  {% if caller is defined %}<div class="page-header__actions">{{ caller() }}</div>{% endif %}
+</div>
+{%- endmacro %}
