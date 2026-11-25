@@ -135,8 +135,17 @@ class DevImpersonationMiddleware:
                 identity_payload = _decode_identity_cookie(self.secret, morsel.value)
 
         if identity_payload:
-            headers[USER_ID_HEADER] = identity_payload["user_id"]
-            headers[USER_GROUPS_HEADER] = ",".join(identity_payload["groups"])
+            user_id = identity_payload.get("user_id")
+            groups = identity_payload.get("groups")
+            # A cookie signed by an older build can still verify but no longer
+            # match the current payload shape. Treat it as "not signed in"
+            # instead of failing every request with a 500.
+            if not user_id or not isinstance(groups, list):
+                await self.app(scope, receive, send)
+                return
+
+            headers[USER_ID_HEADER] = user_id
+            headers[USER_GROUPS_HEADER] = ",".join(groups)
             if identity_payload.get("name"):
                 headers[USER_NAME_HEADER] = identity_payload["name"]
             if identity_payload.get("email"):
