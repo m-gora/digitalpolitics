@@ -23,7 +23,7 @@
 <div class="overflow-hidden rounded-card border border-line bg-white">
   <div class="h-14 border-b border-line" style="background: var({{ token }})"></div>
   <div class="px-3 py-2">
-    <code class="block break-all font-mono text-[0.7rem] text-ink-soft">{{ token }}</code>
+    <code class="block break-words font-mono text-[0.7rem] leading-snug text-ink-soft">{{ token }}</code>
     <span class="block font-mono text-[0.7rem] text-ink-soft">{{ hex }}</span>
     {% if note %}<span class="mt-1 block text-xs leading-snug text-ink-soft">{{ note }}</span>{% endif %}
   </div>
@@ -54,12 +54,13 @@
 ] %}
 <div class="mb-8">
   <div class="rule mb-3"></div>
-  <p class="type-eyebrow">Designsystem v1 · Grundlagen</p>
-  <h1 class="type-h1 mt-1">Tokens und Typografie</h1>
+  <p class="type-eyebrow">Designsystem v1</p>
+  <h1 class="type-h1 mt-1">Grundlagen, Bausteine, Muster</h1>
   <p class="type-body mt-2 max-w-form text-ink-soft">
-    Werte aus dem FDP-Designportal (Farbwelt, Typografie, Layout). Diese Seite ist
-    die Referenz: neue Oberflächen greifen hierauf zurück, statt Einzelklassen zu erfinden.
-    Nur in <code class="font-mono text-sm">APP_ENV=development</code> erreichbar.
+    Werte aus dem FDP-Designportal (Farbwelt, Typografie, Layout) und die daraus
+    abgeleiteten Komponenten. Diese Seite ist die Referenz: neue Oberflächen greifen
+    hierauf zurück, statt Einzelklassen zu erfinden. Nur in
+    <code class="font-mono text-sm">APP_ENV=development</code> erreichbar.
   </p>
   <nav aria-label="Abschnitte" class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm font-bold text-brand-blue-700">
     <a class="underline" href="#farbwelt">Farbwelt</a>
@@ -252,7 +253,7 @@
         {{ button("Kampagne anlegen") }}
         {{ button("Abbrechen", variant="secondary") }}
         {{ button("Löschen", variant="danger") }}
-        {{ button("Aktivieren", variant="warning") }}
+        {{ button("Zurücksetzen", variant="warning") }}
         {{ button("Details", variant="ghost") }}
       </div>
     </div>
@@ -270,13 +271,13 @@
         {{ button("Deaktiviert", disabled=True) }}
         {{ button("Neue Kampagne", icon_left="+") }}
         {{ button("Weiter", icon_right="→") }}
-        {{ link_button("Als Link", "#buttons", variant="secondary") }}
+        {{ link_button("Link-Element", "#buttons", variant="ghost") }}
         {{ icon_button("Dialog schließen", "×") }}
       </div>
     </div>
     <div>
       <p class="type-eyebrow mb-3">Block</p>
-      {{ link_button("Fragebogen erstellen", "/crowd/questionnaires/new", size="lg", block=True) }}
+      {{ link_button("Fragebogen erstellen", "#buttons", size="lg", block=True) }}
     </div>
   </div>
 </section>
@@ -550,10 +551,10 @@
       durch die Beispiele gehen.
     </p>
     <div class="flex flex-wrap items-center gap-3">
-      <button type="button" class="rounded-control bg-brand-blue px-4 py-2 font-bold text-white">Primär</button>
-      <button type="button" class="rounded-control bg-surface-tint-blue px-4 py-2 font-bold text-brand-blue">Sekundär</button>
-      <a href="#fokus" class="font-bold text-brand-blue-700 underline">Ein Link</a>
-      <input class="rounded-control border border-line bg-white px-3 py-2" value="Eingabefeld" aria-label="Beispiel-Eingabefeld" />
+      {{ button("Primär", type="button") }}
+      {{ button("Sekundär", variant="secondary", type="button") }}
+      {{ link_button("Ein Link", "#fokus", variant="ghost") }}
+      <input class="input w-auto" value="Eingabefeld" aria-label="Beispiel-Eingabefeld" />
     </div>
   </div>
 </section>

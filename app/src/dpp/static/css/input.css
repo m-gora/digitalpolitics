@@ -282,12 +282,26 @@
     height: 2.5rem;
     align-items: center;
     justify-content: center;
-    border: 0;
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-control);
-    background-color: transparent;
+    background-color: #fff;
     color: var(--color-brand-blue);
+    font-size: 1.25rem;
+    line-height: 1;
     cursor: pointer;
-    transition: background-color 150ms var(--ease-standard);
+    transition:
+      background-color 150ms var(--ease-standard),
+      border-color 150ms var(--ease-standard);
+  }
+
+  .icon-btn:hover:not(:disabled) {
+    border-color: var(--color-brand-cyan);
+    background-color: var(--color-surface-tint-blue);
+  }
+
+  .icon-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .icon-btn:hover {
