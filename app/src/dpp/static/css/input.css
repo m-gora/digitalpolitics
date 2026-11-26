@@ -557,6 +557,19 @@
     color: var(--color-danger);
   }
 
+  /* Inline text link. Cyan is a graphic colour, so links use blue-700 on
+     light surfaces and darken to brand blue on hover. */
+  .link {
+    color: var(--color-brand-blue-700);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.15em;
+  }
+
+  .link:hover {
+    color: var(--color-brand-blue);
+  }
+
   .input,
   .textarea,
   .select {

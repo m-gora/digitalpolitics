@@ -183,7 +183,7 @@ composition of primitives.
 | Primitives: button, icon button, badge, card, alert, dialog, fields, back link, empty state, stat | **done** |
 | Styleguide `/_design` | foundations, primitives and patterns render |
 | Patterns: page header, filter bar, list row, action bar, stepper | **done** (v1) |
-| Template migration | lists migrated (`campaigns/list`, `initiatives/list`, `crowd/list`); detail, form and landing pages next |
+| Template migration | lists and campaigns module migrated (`list`, `detail`, `new`, `wizard`, `retrospective`); initiatives detail, crowd suite and landing next |
 | Status banner | keep using `alert()`; add a pattern only if a page needs more than one |
 | Legacy CSS (`help-badge`, `district-editor-dialog`, module carousel) | folded into components during migration |
 

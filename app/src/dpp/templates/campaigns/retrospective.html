@@ -1,53 +1,53 @@
 {% extends "base.html" %}
+{% from "components/patterns/action_bar.html" import action_bar %}
+{% from "components/patterns/page_header.html" import page_header %}
+{% from "components/ui/back_link.html" import back_link %}
+{% from "components/ui/button.html" import button %}
+{% from "components/ui/card.html" import card %}
+{% from "components/ui/empty_state.html" import empty_state %}
+{% from "components/ui/field.html" import textarea %}
 {% block title %}Retrospektive — {{ campaign.thema }}{% endblock %}
 
 {% block content %}
-<a href="/campaigns/{{ campaign.id }}" class="text-sm text-brand-blue underline">&larr; zurück zur Kampagne</a>
-<h1 class="text-2xl font-black text-brand-blue mt-2 mb-1">Retrospektive</h1>
-<p class="text-sm text-gray-600 mb-4">{{ campaign.thema }} ({{ campaign.status.label }})</p>
+{% set retrospective_fields = [
+  ("zielerreichung", "Zielerreichung (Soll/Ist vs. Zieldefinition)"),
+  ("was_lief_gut", "Was lief gut?"),
+  ("was_lief_schlecht", "Was lief schlecht?"),
+  ("handlungsempfehlungen", "Handlungsempfehlungen für künftige Kampagnen")
+] %}
+
+{{ back_link("/campaigns/" ~ campaign.id, "zurück zur Kampagne", class_name="mb-2") }}
+
+{{ page_header(
+  "Retrospektive",
+  meta=campaign.thema ~ " (" ~ campaign.status.label ~ ")"
+) }}
 
 {% if campaign.retrospective is none %}
-<p class="text-gray-500">
-  Noch keine Retrospektive — wird automatisch angelegt, sobald die Kampagne den Status
-  "finished" oder "aborted" erreicht (siehe canv-04/canv-05).
-</p>
+<div class="mt-6">
+  {{ empty_state('Noch keine Retrospektive — wird automatisch angelegt, sobald die Kampagne den Status "finished" oder "aborted" erreicht (siehe canv-04/canv-05).') }}
+</div>
 {% else %}
-<form method="post" action="/campaigns/{{ campaign.id }}/retrospective" class="bg-white rounded shadow p-4 space-y-3">
-  <div>
-    <label class="block text-xs font-bold text-gray-600 mb-1">Zielerreichung (Soll/Ist vs. Zieldefinition)</label>
+{% call card(padding="lg", class_name="mt-6") %}
+  <form method="post" action="/campaigns/{{ campaign.id }}/retrospective" class="space-y-4">
+    {% for name, label in retrospective_fields %}
+      {% if can_write %}
+        {{ textarea(name, label, value=campaign.retrospective[name] or "", rows=2) }}
+      {% else %}
+        <div class="field">
+          <span class="field__label">{{ label }}</span>
+          <p class="text-sm whitespace-pre-wrap">{{ campaign.retrospective[name] or "—" }}</p>
+        </div>
+      {% endif %}
+    {% endfor %}
     {% if can_write %}
-      <textarea name="zielerreichung" rows="2" class="w-full border rounded px-2 py-1 text-sm">{{ campaign.retrospective.zielerreichung or "" }}</textarea>
-    {% else %}
-      <p class="text-sm bg-gray-50 rounded px-2 py-1 whitespace-pre-wrap">{{ campaign.retrospective.zielerreichung or "—" }}</p>
+      {% call action_bar() %}
+        <div class="action-bar__group ml-auto">
+          {{ button("Speichern", size="sm") }}
+        </div>
+      {% endcall %}
     {% endif %}
-  </div>
-  <div>
-    <label class="block text-xs font-bold text-gray-600 mb-1">Was lief gut?</label>
-    {% if can_write %}
-      <textarea name="was_lief_gut" rows="2" class="w-full border rounded px-2 py-1 text-sm">{{ campaign.retrospective.was_lief_gut or "" }}</textarea>
-    {% else %}
-      <p class="text-sm bg-gray-50 rounded px-2 py-1 whitespace-pre-wrap">{{ campaign.retrospective.was_lief_gut or "—" }}</p>
-    {% endif %}
-  </div>
-  <div>
-    <label class="block text-xs font-bold text-gray-600 mb-1">Was lief schlecht?</label>
-    {% if can_write %}
-      <textarea name="was_lief_schlecht" rows="2" class="w-full border rounded px-2 py-1 text-sm">{{ campaign.retrospective.was_lief_schlecht or "" }}</textarea>
-    {% else %}
-      <p class="text-sm bg-gray-50 rounded px-2 py-1 whitespace-pre-wrap">{{ campaign.retrospective.was_lief_schlecht or "—" }}</p>
-    {% endif %}
-  </div>
-  <div>
-    <label class="block text-xs font-bold text-gray-600 mb-1">Handlungsempfehlungen für künftige Kampagnen</label>
-    {% if can_write %}
-      <textarea name="handlungsempfehlungen" rows="2" class="w-full border rounded px-2 py-1 text-sm">{{ campaign.retrospective.handlungsempfehlungen or "" }}</textarea>
-    {% else %}
-      <p class="text-sm bg-gray-50 rounded px-2 py-1 whitespace-pre-wrap">{{ campaign.retrospective.handlungsempfehlungen or "—" }}</p>
-    {% endif %}
-  </div>
-  {% if can_write %}
-  <button type="submit" class="bg-brand-blue text-white font-bold px-3 py-1 rounded">Speichern</button>
-  {% endif %}
-</form>
+  </form>
+{% endcall %}
 {% endif %}
 {% endblock %}
