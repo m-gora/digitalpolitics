@@ -248,7 +248,7 @@ async def test_initiative_shows_separate_domain_and_narrative_scores(client, db_
     await _add_member(client, initiative_id, c2, headers)
 
     resp = await client.get(f"/initiatives/{initiative_id}", headers=headers)
-    assert resp.text.count('text-3xl font-black text-brand-cyan">1.00</p>') == 2
+    assert resp.text.count('stat__value mt-2">1.00</p>') == 2
     assert f'id="initiative-domain-help-{initiative_id}"' in resp.text
     assert f'id="initiative-narrative-help-{initiative_id}"' in resp.text
     assert 'aria-label="Erklärung zu Domainähnlichkeit"' in resp.text
@@ -260,7 +260,7 @@ async def test_initiative_shows_separate_domain_and_narrative_scores(client, db_
     await _add_member(client, initiative_id, c3, headers)
 
     resp = await client.get(f"/initiatives/{initiative_id}", headers=headers)
-    assert resp.text.count('text-3xl font-black text-brand-cyan">0.00</p>') == 2
+    assert resp.text.count('stat__value mt-2">0.00</p>') == 2
     assert resp.text.count("Ausreißer-Kandidat</span>") == 1
     assert resp.text.count("Kampagnen in dieser Initiative") == 1
     assert "aus Initiative entfernen" in resp.text
@@ -337,8 +337,8 @@ async def test_domain_and_narrative_similarity_are_independent(client, db_sessio
     detail = await client.get(f"/initiatives/{initiative_id}", headers=headers)
 
     # The topics differ, but both campaigns have the same goal/narrative.
-    assert detail.text.count('text-3xl font-black text-brand-cyan">0.00</p>') == 1
-    assert detail.text.count('text-3xl font-black text-brand-cyan">1.00</p>') == 1
+    assert detail.text.count('stat__value mt-2">0.00</p>') == 1
+    assert detail.text.count('stat__value mt-2">1.00</p>') == 1
 
 
 async def test_outlier_none_clear_marks_no_campaign(client, db_session):
@@ -398,7 +398,7 @@ async def test_unavailable_typesafe_keeps_previous_scores(client, db_session, ty
     await _add_member(client, initiative_id, c3, headers)
 
     resp = await client.get(f"/initiatives/{initiative_id}", headers=headers)
-    assert resp.text.count('text-3xl font-black text-brand-cyan">1.00</p>') == 2
+    assert resp.text.count('stat__value mt-2">1.00</p>') == 2
 
 
 async def test_campaign_edit_and_initiative_edit_trigger_rescoring(client, db_session, typesafe):
