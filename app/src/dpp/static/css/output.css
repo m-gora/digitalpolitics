@@ -543,9 +543,6 @@
   .flex-col {
     flex-direction: column;
   }
-  .flex-nowrap {
-    flex-wrap: nowrap;
-  }
   .flex-wrap {
     flex-wrap: wrap;
   }
@@ -857,9 +854,6 @@
   .p-6 {
     padding: calc(var(--spacing) * 6);
   }
-  .p-8 {
-    padding: calc(var(--spacing) * 8);
-  }
   .px-1\.5 {
     padding-inline: calc(var(--spacing) * 1.5);
   }
@@ -1162,10 +1156,6 @@
       --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 4px 6px -4px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
       box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
     }
-    .hover\:shadow-md:hover {
-      --tw-shadow: 0 4px 6px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 2px 4px -2px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
-      box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-    }
   }
   .focus\:border-brand-cyan:focus {
     border-color: var(--color-brand-cyan);
@@ -1191,23 +1181,8 @@
     opacity: 50%;
   }
   @media (width >= 40rem) {
-    .sm\:mt-0 {
-      margin-top: 0px;
-    }
-    .sm\:flex {
-      display: flex;
-    }
     .sm\:grid {
       display: grid;
-    }
-    .sm\:hidden {
-      display: none;
-    }
-    .sm\:inline-flex {
-      display: inline-flex;
-    }
-    .sm\:w-56 {
-      width: calc(var(--spacing) * 56);
     }
     .sm\:w-auto {
       width: auto;
@@ -1235,9 +1210,6 @@
     }
     .sm\:items-center {
       align-items: center;
-    }
-    .sm\:items-end {
-      align-items: flex-end;
     }
     .sm\:justify-between {
       justify-content: space-between;
@@ -1273,11 +1245,17 @@
     .md\:col-span-2 {
       grid-column: span 2 / span 2;
     }
+    .md\:col-span-3 {
+      grid-column: span 3 / span 3;
+    }
     .md\:grid-cols-2 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .md\:grid-cols-3 {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .md\:items-end {
+      align-items: flex-end;
     }
   }
   @media (width >= 64rem) {
