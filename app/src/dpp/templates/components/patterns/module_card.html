@@ -1,0 +1,30 @@
+{# Module card on the landing page.
+
+     {% call module_card("Kampagnen", "Beschreibung …", "Zum Kampagnenmodul", href="/campaigns", status="Verfügbar", status_tone="success") %}
+       <svg …></svg>
+     {% endcall %}
+
+   props:
+     title        card heading
+     description  body copy
+     footer       action or status line
+     href         omit for a non-interactive (disabled/planned) module
+     status       optional badge label
+     status_tone  neutral | info | warning | success | danger
+     variant      default | dashed (dashed marks planned modules)
+
+   caller() renders the icon; the card marks the wrapper aria-hidden.
+#}
+
+{% from "components/ui/badge.html" import badge %}
+
+{% macro module_card(title, description, footer, href=None, status=None, status_tone="neutral", variant="default", class_name="") -%}
+{%- set classes = "module-card" ~ (" module-card--interactive" if href else "") ~ (" module-card--dashed" if variant == "dashed" else "") ~ (" " ~ class_name if class_name else "") -%}
+{% if href %}<a href="{{ href }}" class="{{ classes }}">{% else %}<article aria-disabled="true" class="{{ classes }}">{% endif %}
+  <span class="module-card__icon" aria-hidden="true">{{ caller() }}</span>
+  <h2 class="module-card__title">{{ title }}</h2>
+  {% if status %}<div class="module-card__status">{{ badge(status, tone=status_tone) }}</div>{% endif %}
+  <p class="module-card__body">{{ description }}</p>
+  <span class="module-card__footer">{{ footer }}{% if href %} <span aria-hidden="true">→</span>{% endif %}</span>
+{% if href %}</a>{% else %}</article>{% endif %}
+{%- endmacro %}

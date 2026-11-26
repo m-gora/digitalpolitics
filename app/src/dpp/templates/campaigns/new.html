@@ -1,29 +1,44 @@
 {% extends "base.html" %}
+{% from "components/patterns/action_bar.html" import action_bar %}
+{% from "components/patterns/page_header.html" import page_header %}
+{% from "components/ui/back_link.html" import back_link %}
+{% from "components/ui/button.html" import button %}
+{% from "components/ui/card.html" import card %}
+{% from "components/ui/field.html" import select %}
 {% block title %}Neue Kampagne — Gliederung{% endblock %}
 
 {% block content %}
+{% set district_options = [] %}
+{% for slug, name, depth in gliederungen.ordered() %}
+  {% set _ = district_options.append({
+    "value": slug,
+    "label": name ~ (" (kein Schreibzugriff)" if not identity.has_write_access(slug) else ""),
+    "disabled": not identity.has_write_access(slug)
+  }) %}
+{% endfor %}
+
 <div class="max-w-2xl mx-auto">
-  <a href="/campaigns" class="text-sm text-brand-blue underline">&larr; Zurück zu den Kampagnen</a>
+  {{ back_link("/campaigns", "Zurück zu den Kampagnen") }}
+
   <div class="mt-4 mb-6">
-    <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Schritt 1 von 4</p>
-    <h1 class="text-2xl font-black text-brand-blue">Wo findet die Kampagne statt?</h1>
-    <p class="text-gray-600 mt-2">Wähle die Gliederung, die diese Kampagne verantwortet. Du kannst die Kampagne später mit anderen Kampagnen derselben Gliederung zu einer Initiative bündeln.</p>
+    {{ page_header(
+      "Wo findet die Kampagne statt?",
+      eyebrow="Schritt 1 von 4",
+      description="Wähle die Gliederung, die diese Kampagne verantwortet. Du kannst die Kampagne später mit anderen Kampagnen derselben Gliederung zu einer Initiative bündeln."
+    ) }}
   </div>
 
-  <form method="post" action="/campaigns/new" class="bg-white rounded shadow p-5" hx-indicator="#request-indicator">
-    <label for="district_slug" class="block font-bold text-sm mb-2">Gliederung</label>
-    <select id="district_slug" name="district_slug" required class="w-full border rounded px-3 py-2 mb-5">
-      {% for slug, name, depth in gliederungen.ordered() %}
-        <option value="{{ slug }}" {% if not identity.has_write_access(slug) %}disabled{% endif %}>
-          {{ "　" * depth }}{{ name }}{% if not identity.has_write_access(slug) %} (kein Schreibzugriff){% endif %}
-        </option>
-      {% endfor %}
-    </select>
-    <div class="flex justify-end">
-      <button type="submit" class="bg-brand-blue text-white font-bold px-4 py-2 rounded disabled:opacity-50">
-        Weiter zur Zieldefinition <span aria-hidden="true">→</span>
-      </button>
-    </div>
-  </form>
+  {% call card(padding="lg") %}
+    <form method="post" action="/campaigns/new" hx-indicator="#request-indicator">
+      <div class="mb-5">
+        {{ select("district_slug", "Gliederung", district_options, required=True) }}
+      </div>
+      {% call action_bar() %}
+        <div class="action-bar__group ml-auto">
+          {{ button("Weiter zur Zieldefinition", icon_right="→") }}
+        </div>
+      {% endcall %}
+    </form>
+  {% endcall %}
 </div>
 {% endblock %}

@@ -1,0 +1,15 @@
+{# Action bar: the footer of a form or a detail page. Buttons sit in groups
+   so primary and secondary actions can be pushed apart.
+
+     {% call action_bar() %}
+       <div class="action-bar__group">{{ button("Löschen", variant="danger") }}</div>
+       <div class="action-bar__group">
+         {{ button("Abbrechen", variant="secondary") }}
+         {{ button("Speichern") }}
+       </div>
+     {% endcall %}
+#}
+
+{% macro action_bar(class_name="") -%}
+<div class="action-bar{% if class_name %} {{ class_name }}{% endif %}">{{ caller() }}</div>
+{%- endmacro %}

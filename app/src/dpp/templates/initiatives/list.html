@@ -1,73 +1,75 @@
 {% extends "base.html" %}
+{% from "components/patterns/list_row.html" import list_row %}
+{% from "components/patterns/page_header.html" import page_header %}
+{% from "components/ui/badge.html" import badge %}
+{% from "components/ui/button.html" import button %}
+{% from "components/ui/card.html" import card %}
+{% from "components/ui/empty_state.html" import empty_state %}
+{% from "components/ui/field.html" import select, text_input %}
 {% block title %}Initiativen{% endblock %}
 {% block main_attrs %}data-initiative-list="true"{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-black text-brand-blue mb-4">Initiativen</h1>
-<p class="text-sm text-gray-600 mb-4">
-  Bündelt Kampagnen aus einer koordinierenden Gliederung und ihren Untergliederungen zu einer gemeinsamen politischen Erzählung (siehe canv-01).
-</p>
+{% set district_options = [] %}
+{% for slug, name, depth in gliederungen.ordered() %}
+  {% set _ = district_options.append({"value": slug, "label": name, "disabled": not identity.has_write_access(slug)}) %}
+{% endfor %}
 
-<section class="mb-8 bg-white rounded shadow p-4">
-  <h2 class="font-bold mb-2">Neue Initiative anlegen</h2>
-  <form method="post" action="/initiatives" class="flex gap-2 items-end flex-wrap">
-    <div>
-      <label class="block text-xs font-bold text-gray-600">Koordinierende Gliederung</label>
-      <select name="district_slug" class="border rounded px-2 py-1">
-        {% for slug, name, depth in gliederungen.ordered() %}
-          <option value="{{ slug }}" {% if not identity.has_write_access(slug) %}disabled{% endif %}>
-            {{ name }}
-          </option>
-        {% endfor %}
-      </select>
+<div class="mb-6">
+  {{ page_header(
+    "Initiativen",
+    description="Bündelt Kampagnen aus einer koordinierenden Gliederung und ihren Untergliederungen zu einer gemeinsamen politischen Erzählung (siehe canv-01)."
+  ) }}
+</div>
+
+{% call card(padding="lg", class_name="mb-8") %}
+  <h2 class="type-h3">Neue Initiative anlegen</h2>
+  <form method="post" action="/initiatives" class="mt-4 grid gap-4 md:grid-cols-3 md:items-end">
+    {{ select("district_slug", "Koordinierende Gliederung", district_options) }}
+    {{ text_input("name", "Name", required=True) }}
+    {{ text_input("description", "Gemeinsame Botschaft / Beschreibung") }}
+    <div class="md:col-span-3">
+      {{ button("Anlegen") }}
     </div>
-    <div>
-      <label class="block text-xs font-bold text-gray-600">Name</label>
-      <input type="text" name="name" required class="border rounded px-2 py-1" />
-    </div>
-    <div>
-      <label class="block text-xs font-bold text-gray-600">Gemeinsame Botschaft / Beschreibung</label>
-      <input type="text" name="description" class="border rounded px-2 py-1" />
-    </div>
-    <button type="submit" class="bg-brand-blue text-white font-bold px-3 py-1 rounded">Anlegen</button>
   </form>
-  <p class="mt-2 text-xs text-gray-500">Kampagnen der ausgewählten Gliederung und aller Untergliederungen können zusammenarbeiten. Du brauchst Schreibzugriff auf die koordinierende Gliederung.</p>
-</section>
+  <p class="field__help mt-3">
+    Kampagnen der ausgewählten Gliederung und aller Untergliederungen können zusammenarbeiten.
+    Du brauchst Schreibzugriff auf die koordinierende Gliederung.
+  </p>
+{% endcall %}
 
 <div class="grid gap-3">
   {% for i in initiatives %}
-  <a href="/initiatives/{{ i.id }}" class="block bg-white rounded shadow p-4 hover:shadow-md">
-    <div class="flex justify-between items-center">
-      <div class="min-w-0 flex-1">
-        <div class="font-bold text-brand-blue">{{ i.name }}</div>
-        <div class="mt-1 text-xs text-gray-500">Koordiniert von {{ gliederungen.name(i.district_slug) }}</div>
-        {% set member_districts = districts_by_initiative.get(i.id, []) %}
+    {% set member_districts = districts_by_initiative.get(i.id, []) %}
+    {% call list_row(href="/initiatives/" ~ i.id, split=True) %}
+      <div class="list-row__body">
+        <h2 class="list-row__title">{{ i.name }}</h2>
+        <p class="list-row__meta">Koordiniert von {{ gliederungen.name(i.district_slug) }}</p>
         {% if member_districts %}
-        <div class="mt-2 flex flex-wrap gap-1.5" aria-label="Beteiligte Gliederungen">
-          {% for district_name in member_districts %}
-            <span class="rounded-full bg-brand-cyan/10 px-2.5 py-1 text-xs font-bold text-brand-blue">{{ district_name }}</span>
-          {% endfor %}
-        </div>
+          <div class="mt-2 flex flex-wrap gap-1.5" aria-label="Beteiligte Gliederungen">
+            {% for district_name in member_districts %}
+              {{ badge(district_name) }}
+            {% endfor %}
+          </div>
         {% else %}
-        <p class="mt-2 text-xs text-gray-400">Noch keine Kampagnen zugeordnet</p>
+          <p class="list-row__meta">Noch keine Kampagnen zugeordnet</p>
         {% endif %}
       </div>
-      <div class="flex shrink-0 flex-nowrap items-center justify-end gap-x-4 text-sm">
+      <div class="list-row__aside">
         {% if i.domain_similarity_score is not none %}
-          <span>Domain: <strong>{{ "%.2f"|format(i.domain_similarity_score) }}</strong></span>
+          <span class="text-sm text-ink-soft">Domain: <strong class="text-brand-blue">{{ "%.2f"|format(i.domain_similarity_score) }}</strong></span>
         {% else %}
-          <span class="text-gray-400">Domain: n/a</span>
+          <span class="text-sm text-ink-soft">Domain: n/a</span>
         {% endif %}
         {% if i.narrative_similarity_score is not none %}
-          <span>Narrativ: <strong>{{ "%.2f"|format(i.narrative_similarity_score) }}</strong></span>
+          <span class="text-sm text-ink-soft">Narrativ: <strong class="text-brand-blue">{{ "%.2f"|format(i.narrative_similarity_score) }}</strong></span>
         {% else %}
-          <span class="text-gray-400">Narrativ: n/a</span>
+          <span class="text-sm text-ink-soft">Narrativ: n/a</span>
         {% endif %}
       </div>
-    </div>
-  </a>
+    {% endcall %}
   {% else %}
-  <p class="text-gray-500">Noch keine Initiativen.</p>
+    {{ empty_state("Noch keine Initiativen.") }}
   {% endfor %}
 </div>
 {% endblock %}

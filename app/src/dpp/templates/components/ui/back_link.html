@@ -1,0 +1,11 @@
+{# Back navigation link.
+
+   props:
+     href        target url
+     label       text, e.g. "Zurück zur Kampagnenliste"
+     class_name  spacing utilities (the component owns appearance only)
+#}
+
+{% macro back_link(href, label, class_name="") -%}
+<a href="{{ href }}" class="back-link{% if class_name %} {{ class_name }}{% endif %}"><span aria-hidden="true">&larr;</span> {{ label }}</a>
+{%- endmacro %}

@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+
+{% from "components/ui/alert.html" import alert %}
+{% from "components/ui/back_link.html" import back_link %}
+{% from "components/ui/badge.html" import badge %}
+{% from "components/ui/button.html" import button, icon_button, link_button %}
+{% from "components/ui/card.html" import card %}
+{% from "components/ui/dialog.html" import dialog %}
+{% from "components/ui/empty_state.html" import empty_state %}
+{% from "components/ui/field.html" import checkbox, select, text_input, textarea %}
+{% from "components/ui/stat.html" import stat %}
+{% from "components/patterns/action_bar.html" import action_bar %}
+{% from "components/patterns/filter_bar.html" import filter_bar %}
+{% from "components/patterns/list_row.html" import list_row %}
+{% from "components/patterns/module_card.html" import module_card %}
+{% from "components/patterns/page_header.html" import page_header %}
+{% from "components/patterns/stepper.html" import stepper %}
+
+{% block title %}Designsystem · Digital Politics Platform{% endblock %}
+
+{# One swatch per token. The chip reads the CSS variable directly so this page
+   can never drift from input.css. #}
+{% macro swatch(token, hex, note="") -%}
+<div class="overflow-hidden rounded-card border border-line bg-white">
+  <div class="h-14 border-b border-line" style="background: var({{ token }})"></div>
+  <div class="px-3 py-2">
+    <code class="block break-words font-mono text-[0.7rem] leading-snug text-ink-soft">{{ token }}</code>
+    <span class="block font-mono text-[0.7rem] text-ink-soft">{{ hex }}</span>
+    {% if note %}<span class="mt-1 block text-xs leading-snug text-ink-soft">{{ note }}</span>{% endif %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro specimen(label, class_name, sample) -%}
+<div class="border-b border-line py-3 last:border-b-0">
+  <div class="mb-1 flex flex-wrap items-baseline gap-x-3">
+    <code class="font-mono text-[0.7rem] text-brand-blue-700">.{{ class_name }}</code>
+    <span class="text-xs text-ink-soft">{{ label }}</span>
+  </div>
+  <div class="{{ class_name }}">{{ sample }}</div>
+</div>
+{%- endmacro %}
+
+{% block content %}
+{% set district_options = [
+  {"value": "lv-berlin", "label": "Landesverband Berlin", "selected": true},
+  {"value": "bv-mitte", "label": "Bezirksverband Mitte"},
+  {"value": "ov-kreuzberg", "label": "Ortsverband Kreuzberg"},
+  {"value": "lv-hamburg", "label": "Landesverband Hamburg", "disabled": true},
+] %}
+{% set status_options = [
+  {"value": "draft", "label": "Entwurf", "selected": true},
+  {"value": "active", "label": "Aktiv"},
+  {"value": "closed", "label": "Geschlossen"},
+] %}
+<div class="mb-8">
+  <div class="rule mb-3"></div>
+  <p class="type-eyebrow">Designsystem v1</p>
+  <h1 class="type-h1 mt-1">Grundlagen, Bausteine, Muster</h1>
+  <p class="type-body mt-2 max-w-form text-ink-soft">
+    Werte aus dem FDP-Designportal (Farbwelt, Typografie, Layout) und die daraus
+    abgeleiteten Komponenten. Diese Seite ist die Referenz: neue Oberflächen greifen
+    hierauf zurück, statt Einzelklassen zu erfinden. Nur in
+    <code class="font-mono text-sm">APP_ENV=development</code> erreichbar.
+  </p>
+  <nav aria-label="Abschnitte" class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm font-bold text-brand-blue-700">
+    <a class="underline" href="#farbwelt">Farbwelt</a>
+    <a class="underline" href="#typografie">Typografie</a>
+    <a class="underline" href="#balken">Der Balken</a>
+    <a class="underline" href="#radien">Radien &amp; Schatten</a>
+    <a class="underline" href="#buttons">Buttons</a>
+    <a class="underline" href="#badges">Badges</a>
+    <a class="underline" href="#cards">Cards</a>
+    <a class="underline" href="#formulare">Formulare</a>
+    <a class="underline" href="#alerts">Alerts</a>
+    <a class="underline" href="#dialog">Dialog</a>
+    <a class="underline" href="#muster">Muster</a>
+    <a class="underline" href="#fokus">Fokus</a>
+  </nav>
+</div>
+
+<section id="farbwelt" class="mb-12">
+  <h2 class="type-h2">Farbwelt</h2>
+  <div class="rule mt-3 mb-5"></div>
+
+  <h3 class="type-h3 mb-1">Marke</h3>
+  <p class="type-body-sm mb-3 text-ink-soft">
+    Drei Markenfarben. Blau ist der bevorzugte Hintergrund, Gelb wirkt flankierend,
+    Cyan ist Signal und Balkenfarbe. Textfarbe immer nach dem höheren Kontrast wählen.
+  </p>
+  <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    {{ swatch("--color-brand-yellow", "#FFE000", "Primär · Gelb") }}
+    {{ swatch("--color-brand-blue", "#032D67", "Primär · Dunkelblau") }}
+    {{ swatch("--color-brand-cyan", "#00A7E7", "Sekundär · Cyan") }}
+    {{ swatch("--color-ink", "#000000", "Tertiär · Schwarz") }}
+    {{ swatch("--color-white", "#FFFFFF", "Tertiär · Weiß") }}
+  </div>
+
+  <h3 class="type-h3 mb-1">Interaktiv</h3>
+  <p class="type-body-sm mb-3 text-ink-soft">
+    Cyan auf Weiß erreicht nur 2,73:1 und ist damit kein Textton. Links und Hover
+    auf hellen Flächen nutzen <code class="font-mono text-xs">blue-700</code> (9,1:1
+    auf <code class="font-mono text-xs">blue-tint</code>).
+  </p>
+  <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    {{ swatch("--color-brand-blue-700", "#043C8B", "Links · Hover") }}
+    {{ swatch("--color-brand-blue-900", "#021B3E", "Dunkle Akzente") }}
+    {{ swatch("--color-surface", "#F4F6FA", "Seitenhintergrund") }}
+    {{ swatch("--color-surface-tint-blue", "#EAF0FA", "Ruhige Fläche") }}
+    {{ swatch("--color-surface-tint-cyan", "#E1F4FC", "Akzentfläche") }}
+  </div>
+
+  <h3 class="type-h3 mb-1">Text und Linien</h3>
+  <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    {{ swatch("--color-ink", "#000000", "Überschriften · 13,3:1 auf Weiß") }}
+    {{ swatch("--color-ink-soft", "#333333", "Fließtext · 11,7:1 auf Fläche") }}
+    {{ swatch("--color-line", "#D5DDEC", "Rahmen · Trenner") }}
+  </div>
+
+  <h3 class="type-h3 mb-1">Rückmeldung</h3>
+  <p class="type-body-sm mb-3 text-ink-soft">
+    Das Corporate Design definiert keine Fehlerfarben; diese Paare sind unsere
+    Ergänzung und erfüllen AA (≥ 4,8:1) auf ihrer jeweiligen Fläche.
+  </p>
+  <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    {{ swatch("--color-info", "#0369A1", "Info · 5,6:1") }}
+    {{ swatch("--color-success", "#15803D", "Erfolg · 4,8:1") }}
+    {{ swatch("--color-warning", "#B45309", "Warnung · 4,8:1") }}
+    {{ swatch("--color-danger", "#B91C1C", "Fehler · 5,9:1") }}
+  </div>
+</section>
+
+<section id="typografie" class="mb-12">
+  <h2 class="type-h2">Typografie</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-4 max-w-form text-ink-soft">
+    Public Sans. Überschriften laufen mit −2 % Laufweite und enger Zeilenhöhe,
+    wie im Designportal. Fließtext weicht bewusst auf 150 % Zeilenhöhe ab:
+    besser lesbar, und das Portal priorisiert selbst Lesbarkeit und Barrierefreiheit.
+  </p>
+  <div class="rounded-card border border-line bg-white px-5 py-2">
+    {{ specimen("Hero · Public Sans Black, 36–48 px", "type-display", "Mehr Mut zum Risiko") }}
+    {{ specimen("Seitentitel · Black, 30–40 px", "type-h1", "Kampagnen-Canvas") }}
+    {{ specimen("Abschnitt · Extrabold, 24 px", "type-h2", "Fragebogen auswerten") }}
+    {{ specimen("Zwischentitel · Extrabold, 18 px", "type-h3", "Rückmeldungen aus den Gliederungen") }}
+    {{ specimen("Fließtext · Regular, 16 px / 1.5", "type-body", "Politik vor Ort beginnt mit einem Gespräch – nicht mit einem Formular.") }}
+    {{ specimen("Sekundär · Regular, 14 px / 1.5", "type-body-sm", "Wird für Hilfetexte, Metadaten und Tabellenzellen verwendet.") }}
+    {{ specimen("Caption · 12 px / 1.4", "type-caption", "Zuletzt aktualisiert am 25.11.2026") }}
+  </div>
+</section>
+
+<section id="balken" class="mb-12">
+  <h2 class="type-h2">Der Balken</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-5 max-w-form text-ink-soft">
+    Signature-Element des Corporate Designs: 6 px hoch, standardmäßig Cyan,
+    Schutzraum 1/3 der Logohöhe. Im digitalen Interface oberhalb oder unterhalb
+    von Überschriften, zur Abschnittstrennung und zur Hervorhebung von Modulen.
+    Auf Weiß sparsam einsetzen.
+  </p>
+
+  <div class="grid gap-4 md:grid-cols-2">
+    <div class="rounded-card border border-line bg-white p-5">
+      <div class="rule mb-3"></div>
+      <p class="type-eyebrow">Eyebrow mit Balken</p>
+      <p class="type-body-sm mt-1 text-ink-soft">Balken oberhalb des Labels.</p>
+    </div>
+
+    <div class="rounded-card border border-line bg-white p-5">
+      <h3 class="type-h3">Mehr Mut zum Risiko</h3>
+      <div class="rule mt-3"></div>
+      <p class="type-body-sm mt-3 text-ink-soft">Balken als Unterstreichung der Headline.</p>
+    </div>
+
+    <div class="rounded-card bg-brand-blue p-5 text-white">
+      <div class="rule mb-3"></div>
+      <p class="type-eyebrow text-brand-yellow">Auf Dunkelblau</p>
+      <p class="type-body-sm mt-1 text-white/80">Hier wirkt der Balken am stärksten.</p>
+    </div>
+
+    <div class="rounded-card bg-brand-yellow p-5 text-brand-blue">
+      <div class="rule mb-3"></div>
+      <p class="type-eyebrow text-brand-blue">Auf Gelb</p>
+      <p class="type-body-sm mt-1">Gelb großflächig nur in Ausnahmefällen.</p>
+    </div>
+  </div>
+
+  <div class="mt-4 flex flex-wrap items-end gap-6 rounded-card border border-line bg-white p-5">
+    <div>
+      <div class="rule"></div>
+      <code class="mt-2 block font-mono text-[0.7rem] text-ink-soft">.rule</code>
+    </div>
+    <div>
+      <div class="rule rule--short"></div>
+      <code class="mt-2 block font-mono text-[0.7rem] text-ink-soft">.rule--short</code>
+    </div>
+    <div class="min-w-40 flex-1">
+      <div class="rule rule--full"></div>
+      <code class="mt-2 block font-mono text-[0.7rem] text-ink-soft">.rule--full</code>
+    </div>
+  </div>
+</section>
+
+<section id="radien" class="mb-12">
+  <h2 class="type-h2">Radien und Schatten</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-5 max-w-form text-ink-soft">
+    Eine Radienfamilie: 6 px für Bedienelemente und Karten, 12 px nur für Overlays.
+    Drei Schattenstufen, mehr braucht die Oberfläche nicht.
+  </p>
+  <div class="grid gap-4 md:grid-cols-3">
+    <div class="rounded-control border border-line bg-white p-4">
+      <code class="font-mono text-[0.7rem] text-ink-soft">--radius-control · 6px</code>
+      <p class="type-body-sm mt-2">Buttons, Eingaben, Auswahlfelder.</p>
+    </div>
+    <div class="rounded-card border border-line bg-white p-4">
+      <code class="font-mono text-[0.7rem] text-ink-soft">--radius-card · 6px</code>
+      <p class="type-body-sm mt-2">Karten, Panels, Listeneinträge.</p>
+    </div>
+    <div class="rounded-overlay border border-line bg-white p-4">
+      <code class="font-mono text-[0.7rem] text-ink-soft">--radius-overlay · 12px</code>
+      <p class="type-body-sm mt-2">Dialoge und Overlays.</p>
+    </div>
+  </div>
+  <div class="mt-4 grid gap-4 md:grid-cols-3">
+    <div class="rounded-card bg-white p-4 shadow-card">
+      <code class="font-mono text-[0.7rem] text-ink-soft">shadow-card</code>
+      <p class="type-body-sm mt-2">Standardkarte.</p>
+    </div>
+    <div class="rounded-card bg-white p-4 shadow-raised">
+      <code class="font-mono text-[0.7rem] text-ink-soft">shadow-raised</code>
+      <p class="type-body-sm mt-2">Hover, schwebende Elemente.</p>
+    </div>
+    <div class="rounded-overlay bg-white p-4 shadow-overlay">
+      <code class="font-mono text-[0.7rem] text-ink-soft">shadow-overlay</code>
+      <p class="type-body-sm mt-2">Dialoge.</p>
+    </div>
+  </div>
+</section>
+
+<section id="buttons" class="mb-12">
+  <h2 class="type-h2">Buttons</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-5 max-w-form text-ink-soft">
+    Fünf Varianten, drei Größen. Primär dunkelt beim Hover innerhalb des Blaus ab:
+    Weiß auf Cyan erreicht nur 2,7:1, Weiß auf <code class="font-mono text-xs">blue-700</code> über 9:1.
+    Größe <code class="font-mono text-xs">lg</code> ist die 48px-Variante für Touch-Ziele.
+  </p>
+
+  <div class="space-y-6 rounded-card border border-line bg-white p-5">
+    <div>
+      <p class="type-eyebrow mb-3">Varianten</p>
+      <div class="flex flex-wrap items-center gap-3">
+        {{ button("Kampagne anlegen") }}
+        {{ button("Abbrechen", variant="secondary") }}
+        {{ button("Löschen", variant="danger") }}
+        {{ button("Zurücksetzen", variant="warning") }}
+        {{ button("Details", variant="ghost") }}
+      </div>
+    </div>
+    <div>
+      <p class="type-eyebrow mb-3">Größen</p>
+      <div class="flex flex-wrap items-center gap-3">
+        {{ button("Suchen & filtern", size="sm") }}
+        {{ button("Speichern", size="md") }}
+        {{ button("Fragebogen erstellen", size="lg") }}
+      </div>
+    </div>
+    <div>
+      <p class="type-eyebrow mb-3">Zustände und Icons</p>
+      <div class="flex flex-wrap items-center gap-3">
+        {{ button("Deaktiviert", disabled=True) }}
+        {{ button("Neue Kampagne", icon_left="+") }}
+        {{ button("Weiter", icon_right="→") }}
+        {{ link_button("Link-Element", "#buttons", variant="ghost") }}
+        {{ icon_button("Dialog schließen", "×") }}
+      </div>
+    </div>
+    <div>
+      <p class="type-eyebrow mb-3">Block</p>
+      {{ link_button("Fragebogen erstellen", "#buttons", size="lg", block=True) }}
+    </div>
+  </div>
+</section>
+
+<section id="badges" class="mb-12">
+  <h2 class="type-h2">Badges</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-5 max-w-form text-ink-soft">
+    Statusanzeige in Listen und Detailköpfen. Tonalität folgt der Bedeutung,
+    nicht der Dekoration.
+  </p>
+  <div class="space-y-5 rounded-card border border-line bg-white p-5">
+    <div class="flex flex-wrap items-center gap-3">
+      {{ badge("Entwurf") }}
+      {{ badge("Aktiv", tone="info") }}
+      {{ badge("Überprüfung", tone="warning") }}
+      {{ badge("Abgeschlossen", tone="success") }}
+      {{ badge("Abgebrochen", tone="danger") }}
+    </div>
+    <div class="flex flex-wrap items-center gap-3">
+      {{ badge("Klein", size="sm") }}
+      {{ badge("Mittel", size="md") }}
+      {{ badge("Groß", size="lg") }}
+    </div>
+  </div>
+</section>
+
+<section id="cards" class="mb-12">
+  <h2 class="type-h2">Cards</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-5 max-w-form text-ink-soft">
+    Eine Karte, drei Ausprägungen. <code class="font-mono text-xs">interactive</code>
+    ist für klickbare Listenzeilen und Modulkacheln gedacht.
+  </p>
+  <div class="grid gap-4 md:grid-cols-3">
+    {% call card() %}
+      <h3 class="card__title">Standard</h3>
+      <p class="type-body-sm mt-1 text-ink-soft">Weiße Fläche, <code class="font-mono text-xs">shadow-card</code>.</p>
+    {% endcall %}
+    {% call card(variant="outlined") %}
+      <h3 class="card__title">Outlined</h3>
+      <p class="type-body-sm mt-1 text-ink-soft">Rahmen statt Schatten, für dichte Layouts.</p>
+    {% endcall %}
+    {% call card(variant="interactive") %}
+      <h3 class="card__title">Interactive</h3>
+      <p class="type-body-sm mt-1 text-ink-soft">Hover hebt die Karte an (hier ausprobieren).</p>
+    {% endcall %}
+  </div>
+  <div class="mt-4">
+    {% call card(padding="none") %}
+      <div class="card__header">
+        <h3 class="card__title">Karte mit Abschnitten</h3>
+        {{ badge("Aktiv", tone="info") }}
+      </div>
+      <div class="card__body">
+        <p class="type-body-sm text-ink-soft">Kopf, Inhalt und Fuß sind getrennte Bereiche. Für diese Variante <code class="font-mono text-xs">padding="none"</code> verwenden.</p>
+      </div>
+      <div class="card__footer">
+        {{ button("Bearbeiten", size="sm", type="button") }}
+        {{ button("Schließen", size="sm", variant="secondary", type="button") }}
+      </div>
+    {% endcall %}
+  </div>
+</section>
+
+<section id="formulare" class="mb-12">
+  <h2 class="type-h2">Formulare</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-5 max-w-form text-ink-soft">
+    Label, Hilfetext, Fehlertext und die ARIA-Verknüpfung gehören zum Feld — deshalb
+    ein Makro pro Feldtyp statt loser Inputs. Ein Fehler setzt automatisch
+    <code class="font-mono text-xs">aria-invalid</code> und verknüpft den Fehlertext.
+  </p>
+
+  <div class="grid gap-6 md:grid-cols-2">
+    <div class="space-y-5 rounded-card border border-line bg-white p-5">
+      <p class="type-eyebrow">Standard</p>
+      {{ text_input("thema", "Thema der Kampagne", placeholder="Bildung stärken") }}
+      {{ select("district", "Gliederung", district_options, help="Bestimmt, wer die Kampagne bearbeiten darf.") }}
+      {{ textarea("ziel", "Ziel", rows=3, help="Ein bis zwei Sätze, was erreicht werden soll.") }}
+      {{ checkbox("kooperation", "Kooperation mit anderen Gliederungen", help="Optional, kann später geändert werden.") }}
+    </div>
+    <div class="space-y-5 rounded-card border border-line bg-white p-5">
+      <p class="type-eyebrow">Zustände</p>
+      {{ text_input("email", "E-Mail", value="kaputt@", type="email", error="Bitte eine gültige E-Mail-Adresse angeben.") }}
+      {{ text_input("gesperrt", "Gesperrtes Feld", value="Nicht bearbeitbar", attrs='disabled') }}
+      {{ text_input("hilfe", "Mit Hilfetext", value="Bildung", help="Maximal 100 Zeichen.") }}
+      {{ text_input("pflicht", "Pflichtfeld", required=True) }}
+    </div>
+  </div>
+
+  <div class="mt-4">
+    {% call card(padding="lg") %}
+      <h3 class="type-h3">Formularabschnitt</h3>
+      <p class="type-body-sm mb-4 text-ink-soft">Die komponierte Form: Karte, Felder, Aktionen.</p>
+      <div class="grid gap-4 md:grid-cols-2">
+        {{ text_input("titel", "Titel", required=True) }}
+        {{ select("status", "Status", status_options) }}
+      </div>
+      <div class="mt-5 flex flex-wrap gap-3">
+        {{ button("Speichern") }}
+        {{ button("Abbrechen", variant="secondary", type="button") }}
+      </div>
+    {% endcall %}
+  </div>
+</section>
+
+<section id="alerts" class="mb-12">
+  <h2 class="type-h2">Alerts</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-5 max-w-form text-ink-soft">
+    Vier Tonarten, mit und ohne Titel. Bei dynamisch eingefügten Meldungen am
+    Aufrufer <code class="font-mono text-xs">role="status"</code> oder
+    <code class="font-mono text-xs">role="alert"</code> setzen.
+  </p>
+  <div class="space-y-3">
+    {{ alert("Die Kampagne ist noch im Entwurf und für andere unsichtbar.", tone="info", title="Hinweis") }}
+    {{ alert("Die Änderungen wurden übernommen.", tone="success", title="Gespeichert") }}
+    {{ alert("Ohne Titel kann die Kampagne nicht veröffentlicht werden.", tone="warning", title="Achtung") }}
+    {{ alert("Der Fragebogen konnte nicht geschlossen werden.", tone="danger", title="Fehler") }}
+    {{ alert("Nur Text, ohne Titel.") }}
+  </div>
+</section>
+
+<section id="dialog" class="mb-12">
+  <h2 class="type-h2">Dialog</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-5 max-w-form text-ink-soft">
+    Natives <code class="font-mono text-xs">&lt;dialog&gt;</code>: Escape schließt,
+    der Fokus bleibt im Overlay, der Hintergrund wird abgedunkelt.
+  </p>
+  <div class="rounded-card border border-line bg-white p-5">
+    {{ button("Dialog öffnen", type="button", attrs='data-open-dialog="demo-dialog"') }}
+  </div>
+
+  {% call dialog(id="demo-dialog", title="Gliederung bearbeiten", description="Beispiel für ein Overlay mit Formular und Aktionen.") %}
+    <div class="space-y-4">
+      {{ text_input("dialog-district", "Gliederung", value="Landesverband Berlin", help="Änderungen gelten nur für diese Kampagne.") }}
+      {{ textarea("dialog-note", "Notiz", rows=3) }}
+    </div>
+    <div class="dialog__footer mt-4">
+      <form method="dialog" hx-boost="false">
+        {{ button("Schließen", variant="secondary", type="submit") }}
+      </form>
+      {{ button("Speichern", type="button") }}
+    </div>
+  {% endcall %}
+</section>
+
+<section id="muster" class="mb-12">
+  <h2 class="type-h2">Muster</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <p class="type-body mb-5 max-w-form text-ink-soft">
+    Zusammengesetzte Bausteine. Sobald ein Muster an drei Stellen vorkommt, bekommt
+    es ein eigenes Makro; vorher bleibt es Komposition.
+  </p>
+
+  <div class="space-y-8">
+    <div>
+      <p class="type-eyebrow mb-3">Seitenkopf</p>
+      <div class="rounded-card border border-line bg-white p-5">
+        {% call page_header("Kampagnen", eyebrow="Campaign Canvas", description="Alle Kampagnen der Gliederung, nach Status und Thema durchsuchbar.") %}
+          {{ button("Neue Kampagne") }}
+        {% endcall %}
+      </div>
+    </div>
+
+    <div>
+      <p class="type-eyebrow mb-3">Filterleiste</p>
+      {% call filter_bar(action="#muster") %}
+        <div class="filter-bar__grow">
+          {{ text_input("q", "Kampagnen durchsuchen", placeholder="Thema, Ziel, Zusammenfassung …") }}
+        </div>
+        <div class="filter-bar__fixed">
+          {{ select("filter-status", "Status", status_options) }}
+        </div>
+        <div class="filter-bar__fixed">
+          {{ button("Filtern", variant="secondary") }}
+        </div>
+      {% endcall %}
+    </div>
+
+    <div>
+      <p class="type-eyebrow mb-3">Listenzeilen</p>
+      <div class="space-y-3">
+        {% call list_row(href="#muster", split=True) %}
+          <div class="list-row__body">
+            <h3 class="list-row__title">Bildung stärken</h3>
+            <p class="list-row__meta">Bezirksverband Friedrichshain-Kreuzberg · zuletzt bearbeitet vor 2 Tagen</p>
+          </div>
+          <div class="list-row__aside">
+            {{ badge("Laufend", tone="info") }}
+            <span class="text-sm font-bold text-brand-blue">72 %</span>
+          </div>
+        {% endcall %}
+        {% call list_row(href="#muster", split=True) %}
+          <div class="list-row__body">
+            <h3 class="list-row__title">Mietpreisbremse nachschärfen</h3>
+            <p class="list-row__meta">Landesverband Berlin · Entwurf seit gestern</p>
+          </div>
+          <div class="list-row__aside">
+            {{ badge("Entwurf", tone="neutral") }}
+            <span class="text-sm font-bold text-brand-blue">12 %</span>
+          </div>
+        {% endcall %}
+        {% call list_row() %}
+          <h3 class="list-row__title">Nicht verlinkte Zeile</h3>
+          <p class="list-row__meta">Ohne <code class="font-mono text-xs">href</code> bleibt die Zeile statisch.</p>
+        {% endcall %}
+      </div>
+    </div>
+
+    <div>
+      <p class="type-eyebrow mb-3">Aktionsleiste</p>
+      <div class="rounded-card border border-line bg-white p-5">
+        {% call action_bar() %}
+          <div class="action-bar__group">
+            {{ button("Löschen", variant="danger") }}
+          </div>
+          <div class="action-bar__group">
+            {{ button("Abbrechen", variant="secondary") }}
+            {{ button("Speichern") }}
+          </div>
+        {% endcall %}
+      </div>
+    </div>
+
+    <div>
+      <p class="type-eyebrow mb-3">Stepper</p>
+      <div class="rounded-card border border-line bg-white p-5">
+        {{ stepper([
+          {"label": "Gliederung", "href": "#muster", "state": "done"},
+          {"label": "Zieldefinition", "href": "#muster", "state": "current"},
+          {"label": "Zielgruppen & Kanäle"},
+          {"label": "Material, Organisation & Storytelling"},
+        ]) }}
+      </div>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+      <div class="rounded-card border border-line bg-white p-5">
+        <p class="type-eyebrow mb-3">Zurück-Link</p>
+        {{ back_link("#muster", "Zurück zur Kampagnenliste") }}
+      </div>
+
+      <div class="rounded-card border border-line bg-white p-5">
+        <p class="type-eyebrow mb-3">Leerer Zustand</p>
+        {{ empty_state("Noch keine Kampagnen angelegt.") }}
+      </div>
+
+      {% call card() %}
+        {{ stat("0.87", "Domain-Ähnlichkeit", "Kosinus-Ähnlichkeit zum Grundsatzprogramm") }}
+      {% endcall %}
+
+      {% call card(variant="interactive") %}
+        <h3 class="card__title">Bildung stärken</h3>
+        <p class="type-body-sm mt-1 text-ink-soft">Bezirksverband Friedrichshain-Kreuzberg</p>
+        <div class="mt-3">{{ badge("Laufend", tone="info") }}</div>
+      {% endcall %}
+    </div>
+
+    <div class="mt-6">
+      <p class="type-eyebrow mb-3">Modulkachel</p>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% call module_card(
+          "Kampagnen",
+          "Kampagnen strategisch planen, gemeinsam weiterentwickeln und Erfahrungen für die nächste Aktion festhalten.",
+          "Zum Kampagnenmodul",
+          href="#muster",
+          status="Verfügbar",
+          status_tone="success"
+        ) %}
+          <svg viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+            <path d="M8 7h8M8 11h8" />
+          </svg>
+        {% endcall %}
+
+        {% call module_card(
+          "Unterstützungsunterschriften",
+          "Unterstützungsunterschriften für politische Vorhaben und Wahlzulassungen organisieren und nachverfolgen.",
+          "In Planung",
+          status="Bald verfügbar",
+          variant="dashed"
+        ) %}
+          <svg viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 10v4h4l5 4V6l-5 4H3Z" />
+            <path d="M16 9a5 5 0 0 1 0 6M19 6a9 9 0 0 1 0 12" />
+          </svg>
+        {% endcall %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="fokus" class="mb-12">
+  <h2 class="type-h2">Fokus</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <div class="rounded-card border border-line bg-white p-5">
+    <p class="type-body-sm mb-4 text-ink-soft">
+      Ein Fokusring für die ganze Anwendung: 2 px Cyan, 2 px Abstand.
+      Mit <kbd class="rounded-control border border-line px-1.5 py-0.5 font-mono text-xs">Tab</kbd>
+      durch die Beispiele gehen.
+    </p>
+    <div class="flex flex-wrap items-center gap-3">
+      {{ button("Primär", type="button") }}
+      {{ button("Sekundär", variant="secondary", type="button") }}
+      {{ link_button("Ein Link", "#fokus", variant="ghost") }}
+      <input class="input w-auto" value="Eingabefeld" aria-label="Beispiel-Eingabefeld" />
+    </div>
+  </div>
+</section>
+
+<section class="mb-4">
+  <h2 class="type-h2">Noch offen</h2>
+  <div class="rule mt-3 mb-5"></div>
+  <ul class="type-body-sm list-disc pl-5 text-ink-soft">
+    <li>Die Template-Migration ist abgeschlossen; neue Seiten sollen die Bausteine aus diesem Katalog verwenden.</li>
+    <li>Barrierefreiheit wird bei neuen Bausteinen mitgeprüft, nicht nachträglich dokumentiert.</li>
+  </ul>
+</section>
+{% endblock %}

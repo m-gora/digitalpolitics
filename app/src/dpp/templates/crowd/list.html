@@ -1,18 +1,34 @@
 {% extends "base.html" %}
-{% block head_extra %}<link rel="stylesheet" href="/static/crowd/crowd.css">{% endblock %}
+{% from "components/patterns/list_row.html" import list_row %}
+{% from "components/patterns/page_header.html" import page_header %}
+{% from "components/ui/badge.html" import badge %}
+{% from "components/ui/button.html" import link_button %}
+{% from "components/ui/empty_state.html" import empty_state %}
 {% block title %}Befragungen – Digital Politics Platform{% endblock %}
 {% block content %}
-<div class="flex flex-wrap items-center justify-between gap-4">
-  <div><p class="text-sm font-bold uppercase tracking-wide text-brand-blue">Crowdsourcing</p><h1 class="text-3xl font-black text-brand-blue">Befragungen</h1></div>
-  <a href="/crowd/questionnaires/new" class="rounded bg-brand-blue px-5 py-3 font-bold text-white hover:bg-brand-cyan">Fragebogen erstellen</a>
+{% set questionnaire_labels = {"draft": "Entwurf", "active": "Aktiv", "closed": "Geschlossen"} %}
+{% set questionnaire_tones = {"draft": "neutral", "active": "info", "closed": "neutral"} %}
+
+<div class="mb-6">
+  {% call page_header("Befragungen", eyebrow="Crowdsourcing") %}
+    {{ link_button("Fragebogen erstellen", "/crowd/questionnaires/new") }}
+  {% endcall %}
 </div>
-<div class="mt-6 space-y-3">
-{% for q in questionnaires %}
-  <a href="/crowd/questionnaires/{{ q.id }}" class="block rounded-lg border bg-white p-5 shadow-sm hover:border-brand-cyan">
-    <div class="flex flex-wrap justify-between gap-2"><h2 class="text-xl font-bold text-brand-blue">{{ q.title }}</h2><span class="rounded-full bg-gray-100 px-3 py-1 text-sm font-bold">{{ {"draft":"Entwurf","active":"Aktiv","closed":"Geschlossen"}[q.status.value] }}</span></div>
-    <p class="mt-2 text-sm text-gray-600">{{ q.campaign.thema if q.campaign else "Ohne Kampagne" }} · {{ counts[q.id] }} Antworten</p>
-    <p class="mt-1 text-xs text-gray-500">Erstellt von {{ q.created_by_name or q.created_by }}</p>
-  </a>
-{% else %}<p class="mt-6 rounded bg-white p-6 text-gray-600">Noch keine Fragebögen vorhanden.</p>{% endfor %}
+
+<div class="space-y-3">
+  {% for q in questionnaires %}
+    {% call list_row(href="/crowd/questionnaires/" ~ q.id, split=True) %}
+      <div class="list-row__body">
+        <h2 class="list-row__title">{{ q.title }}</h2>
+        <p class="list-row__meta">{{ q.campaign.thema if q.campaign else "Ohne Kampagne" }} · {{ counts[q.id] }} Antworten</p>
+        <p class="list-row__meta">Erstellt von {{ q.created_by_name or q.created_by }}</p>
+      </div>
+      <div class="list-row__aside">
+        {{ badge(questionnaire_labels[q.status.value], tone=questionnaire_tones[q.status.value]) }}
+      </div>
+    {% endcall %}
+  {% else %}
+    {{ empty_state("Noch keine Fragebögen vorhanden.") }}
+  {% endfor %}
 </div>
 {% endblock %}

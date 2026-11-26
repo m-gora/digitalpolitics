@@ -1,11 +1,19 @@
 {% extends "base.html" %}
 {% from "components/help_badge.html" import help_badge %}
+{% from "components/patterns/action_bar.html" import action_bar %}
+{% from "components/patterns/page_header.html" import page_header %}
+{% from "components/ui/badge.html" import badge %}
+{% from "components/ui/back_link.html" import back_link %}
+{% from "components/ui/button.html" import button, link_button %}
+{% from "components/ui/card.html" import card %}
+{% from "components/ui/dialog.html" import dialog %}
+{% from "components/ui/field.html" import select %}
 {% block title %}{{ campaign.thema or "Kampagne" }}{% endblock %}
 {% block main_attrs %}data-campaign-id="{{ campaign.id }}"{% endblock %}
 
 {% macro answer(campaign_id, field_id, label, explanation, value) %}
-<div class="border-b border-gray-100 py-3 last:border-0">
-  <h3 class="inline-flex items-center font-bold text-sm">
+<div class="border-b border-line py-3 last:border-0">
+  <h3 class="inline-flex items-center font-bold text-sm text-ink">
     {{ label }}
     {{ help_badge(
       "campaign-field-help-" ~ campaign_id ~ "-" ~ field_id,
@@ -19,69 +27,88 @@
 {% endmacro %}
 
 {% block content %}
-<a href="/campaigns" class="mb-4 inline-block text-sm font-bold text-brand-blue underline hover:text-brand-cyan">&larr; Zurück zur Kampagnenliste</a>
-<div class="flex flex-wrap items-start justify-between gap-3 mb-5">
-  <div>
-    <p class="text-sm text-gray-600">{{ gliederungen.name(campaign.district_slug) }}</p>
-    {% if campaign.created_by %}
-    <p class="mt-1 break-words text-xs text-gray-500">Erstellt von {{ campaign.created_by_name or campaign.created_by }}</p>
-    {% endif %}
-    <h1 class="text-2xl font-black text-brand-blue">{{ campaign.thema or "Neue Kampagne" }}</h1>
-  </div>
-  <span class="text-xs font-bold px-2 py-1 rounded bg-gray-200 h-fit">{{ campaign.status.label }}</span>
-</div>
+{% set status_tones = {
+  "draft": "neutral",
+  "review": "warning",
+  "running": "info",
+  "finished": "success",
+  "aborted": "danger",
+  "archived": "neutral"
+} %}
+
+{{ back_link("/campaigns", "Zurück zur Kampagnenliste", class_name="mb-4") }}
+
+{% call page_header(
+  campaign.thema or "Neue Kampagne",
+  eyebrow=gliederungen.name(campaign.district_slug),
+  meta=("Erstellt von " ~ (campaign.created_by_name or campaign.created_by)) if campaign.created_by else None
+) %}
+  {{ badge(campaign.status.label, tone=status_tones[campaign.status.value], size="md") }}
+{% endcall %}
 
 {% if initiatives %}
-<div class="mb-4 text-sm">
+<div class="mb-4 mt-5 text-sm">
   <span class="font-bold">Initiativen:</span>
   {% for i in initiatives %}
-    <a href="/initiatives/{{ i.id }}" class="text-brand-blue underline">{{ i.name }}</a>{{ ", " if not loop.last }}
+    <a href="/initiatives/{{ i.id }}" class="link">{{ i.name }}</a>{{ ", " if not loop.last }}
   {% endfor %}
 </div>
 {% endif %}
 
 {% if campaign.forked_from_id %}
-<p class="text-xs text-gray-500 mb-4">Abgeleitet (Fork) von einer anderen Kampagne.</p>
+<p class="mb-4 text-xs text-ink-soft">Abgeleitet (Fork) von einer anderen Kampagne.</p>
 {% endif %}
 
-<section class="mb-5 rounded bg-white p-5 shadow">
-  <div class="flex flex-wrap items-center justify-between gap-2"><h2 class="text-lg font-black text-brand-blue">Befragungen</h2><a href="/crowd/questionnaires/new" class="text-sm font-bold text-brand-blue underline">Fragebogen erstellen</a></div>
-  {% if crowd_questionnaires %}<ul class="mt-3 space-y-2">{% for q in crowd_questionnaires %}<li class="flex flex-wrap justify-between gap-2 border-t pt-2"><a href="/crowd/questionnaires/{{ q.id }}" class="font-bold text-brand-blue underline">{{ q.title }}</a><span class="text-sm text-gray-600">{{ crowd_counts[q.id] or 0 }} Antworten · {{ {"draft":"Entwurf","active":"Aktiv","closed":"Geschlossen"}[q.status.value] }}</span></li>{% endfor %}</ul>{% else %}<p class="mt-2 text-sm text-gray-600">Noch keine Befragungen mit dieser Kampagne verknüpft.</p>{% endif %}
-</section>
+{% call card(padding="lg", class_name="mt-5 mb-5") %}
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <h2 class="type-h3">Befragungen</h2>
+    <a href="/crowd/questionnaires/new" class="link text-sm font-bold">Fragebogen erstellen</a>
+  </div>
+  {% if crowd_questionnaires %}
+    <ul class="mt-3 space-y-2">
+      {% for q in crowd_questionnaires %}
+        <li class="flex flex-wrap justify-between gap-2 border-t border-line pt-2">
+          <a href="/crowd/questionnaires/{{ q.id }}" class="link font-bold">{{ q.title }}</a>
+          <span class="text-sm text-ink-soft">{{ crowd_counts[q.id] or 0 }} Antworten · {{ {"draft":"Entwurf","active":"Aktiv","closed":"Geschlossen"}[q.status.value] }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="mt-2 text-sm text-ink-soft">Noch keine Befragungen mit dieser Kampagne verknüpft.</p>
+  {% endif %}
+{% endcall %}
 
 {% if can_write and campaign.status.value == "draft" %}
 <div class="mb-5">
-  <a href="/campaigns/{{ campaign.id }}/wizard/{{ wizard_step }}" class="inline-flex items-center gap-2 bg-brand-blue text-white font-bold px-4 py-2 rounded hover:bg-brand-cyan">
-    Canvas weiter ausfüllen oder bearbeiten <span aria-hidden="true">→</span>
-  </a>
+  {{ link_button("Canvas weiter ausfüllen oder bearbeiten", "/campaigns/" ~ campaign.id ~ "/wizard/" ~ wizard_step, icon_right="→") }}
 </div>
 {% endif %}
 
-<section class="bg-white rounded shadow p-5 mb-4">
-  <h2 class="text-lg font-black text-brand-blue mb-2">Zieldefinition</h2>
+{% call card(padding="lg", class_name="mb-4") %}
+  <h2 class="type-h3 mb-2">Zieldefinition</h2>
   {{ answer(campaign.id, "thema", "Thema", "Worum geht es?", campaign.thema) }}
   {{ answer(campaign.id, "ziel", "Ziel", "Was ist das Ziel (politisch und kommunikativ)?", campaign.ziel) }}
-</section>
+{% endcall %}
 
-<section class="bg-white rounded shadow p-5 mb-4">
-  <h2 class="text-lg font-black text-brand-blue mb-2">Zielgruppen &amp; Kanäle</h2>
+{% call card(padding="lg", class_name="mb-4") %}
+  <h2 class="type-h3 mb-2">Zielgruppen &amp; Kanäle</h2>
   {{ answer(campaign.id, "zielgruppen", "Zielgruppen", "Gibt es spezielle Zielgruppen?", campaign.zielgruppen) }}
   {{ answer(campaign.id, "kanaele", "Kanäle", "Welche Zulieferer brauchen wir? Wo erreichen wir die Zielgruppe?", campaign.kanaele) }}
   {{ answer(campaign.id, "momentum", "Momentum", "Welche Multiplikatoren haben wir in unserem Umfeld? Welche Stakeholder und Partner können wir aktivieren?", campaign.momentum) }}
   {{ answer(campaign.id, "motiv", "Motiv", "Warum sollte jemand mitmachen?", campaign.motiv) }}
-</section>
+{% endcall %}
 
-<section class="bg-white rounded shadow p-5 mb-5">
-  <h2 class="text-lg font-black text-brand-blue mb-2">Material, Organisation &amp; Storytelling</h2>
+{% call card(padding="lg", class_name="mb-5") %}
+  <h2 class="type-h3 mb-2">Material, Organisation &amp; Storytelling</h2>
   {{ answer(campaign.id, "service", "Service", "Was sollte man den Aktivisten zur Verfügung stellen?", campaign.service) }}
   {{ answer(campaign.id, "data-harvest", "Data Harvest", "Welche Daten unserer Zielgruppe wären besonders nützlich für eine nutzenstiftende Kommunikation? Was passiert im Anschluss mit diesen Daten?", campaign.data_harvest) }}
   {{ answer(campaign.id, "tools", "Tools", "Welche Tools könnten nützlich sein? (Apps, Petitionstools, etc.)", campaign.tools) }}
   {{ answer(campaign.id, "phasen-flow", "Phasen & Flow", "Wie startet die Aktion um erfolgreich Aufmerksamkeit zu erzeugen? Wie halten wir die Spannung? Wann gibt es Anlässe die wir nutzen können? Wie endet die Aktion?", campaign.phasen_flow) }}
   {{ answer(campaign.id, "storytelling", "Storytelling", "Gibt es eine spannende Perspektive, besondere Personengruppen, etc?", campaign.storytelling) }}
-</section>
+{% endcall %}
 
 {% if (can_write and allowed_transitions) or campaign.is_closed %}
-<div class="mb-4 flex flex-wrap items-center gap-2">
+{% call action_bar(class_name="mb-4") %}
   {% if can_write and allowed_transitions %}
   {% set transition_labels = {
     "draft": "Entwerfen",
@@ -91,52 +118,44 @@
     "aborted": "Abbrechen",
     "archived": "Archivieren"
   } %}
+  <div class="action-bar__group">
     {% for status in allowed_transitions %}
     <form method="post" action="/campaigns/{{ campaign.id }}/transition" hx-indicator="#request-indicator">
       <input type="hidden" name="to_status" value="{{ status.value }}" />
-      <button type="submit" class="rounded bg-gray-200 px-3 py-2 text-sm font-bold hover:bg-brand-cyan hover:text-white">
-        {{ transition_labels[status.value] }}
-      </button>
+      {{ button(transition_labels[status.value], variant="secondary") }}
     </form>
     {% endfor %}
+  </div>
   {% endif %}
 
-  {% if campaign.is_closed %}
-  <a href="/campaigns/{{ campaign.id }}/retrospective" class="inline-flex rounded bg-brand-yellow px-3 py-2 text-sm font-bold text-brand-blue">Retrospektive ansehen</a>
-  {% endif %}
-
-  {% if can_write %}
-  <button type="button" data-open-dialog="campaign-template-dialog-{{ campaign.id }}" aria-haspopup="dialog" class="inline-flex rounded bg-gray-200 px-3 py-2 text-sm font-bold text-brand-blue hover:bg-brand-cyan hover:text-white">Als Vorlage verwenden</button>
-  {% endif %}
-</div>
+  <div class="action-bar__group">
+    {% if campaign.is_closed %}
+      {{ link_button("Retrospektive ansehen", "/campaigns/" ~ campaign.id ~ "/retrospective", variant="warning") }}
+    {% endif %}
+    {% if can_write %}
+      <button type="button" class="btn btn--ghost btn--md" data-open-dialog="campaign-template-dialog-{{ campaign.id }}" aria-haspopup="dialog">Als Vorlage verwenden</button>
+    {% endif %}
+  </div>
+{% endcall %}
 {% endif %}
 
 {% if can_write %}
-<dialog id="campaign-template-dialog-{{ campaign.id }}" aria-labelledby="campaign-template-title-{{ campaign.id }}" class="district-editor-dialog w-[calc(100%-2rem)] max-w-lg rounded-xl border-0 p-0 shadow-xl backdrop:bg-black/50">
-  <div class="p-5 sm:p-6">
-    <div class="mb-5 flex items-start justify-between gap-4">
-      <div class="min-w-0">
-        <h2 id="campaign-template-title-{{ campaign.id }}" class="text-xl font-black text-brand-blue">Als Vorlage verwenden</h2>
-        <p class="mt-1 text-sm text-gray-600">Wähle die Ziel-Gliederung für die neue Kampagne.</p>
-      </div>
-      <form method="dialog" hx-boost="false">
-        <button type="submit" aria-label="Dialog schließen" class="rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100">×</button>
-      </form>
+{% call dialog(
+  "campaign-template-dialog-" ~ campaign.id,
+  "Als Vorlage verwenden",
+  description="Wähle die Ziel-Gliederung für die neue Kampagne."
+) %}
+  {% set district_options = [] %}
+  {% for slug, name, depth in gliederungen.ordered() %}
+    {% set _ = district_options.append({"value": slug, "label": name, "disabled": not identity.has_write_access(slug)}) %}
+  {% endfor %}
+  <form method="post" action="/campaigns/{{ campaign.id }}/fork" class="space-y-4" hx-indicator="#request-indicator">
+    {{ select("target_district_slug", "Ziel-Gliederung", district_options, id="target_district_slug-" ~ campaign.id, required=True) }}
+    <p class="field__help">Es werden nur die Canvas-Feldwerte kopiert. Initiative, Hierarchie und gesammelte Daten werden nicht übernommen.</p>
+    <div class="flex justify-end">
+      {{ button("Vorlage verwenden") }}
     </div>
-
-    <form method="post" action="/campaigns/{{ campaign.id }}/fork" class="space-y-4" hx-indicator="#request-indicator">
-      <div>
-        <label for="target_district_slug-{{ campaign.id }}" class="mb-1 block text-sm font-bold text-gray-700">Ziel-Gliederung</label>
-        <select id="target_district_slug-{{ campaign.id }}" name="target_district_slug" required class="w-full rounded border border-gray-300 px-3 py-2">
-        {% for slug, name, depth in gliederungen.ordered() %}
-          <option value="{{ slug }}" {% if not identity.has_write_access(slug) %}disabled{% endif %}>{{ "　" * depth }}{{ name }}</option>
-        {% endfor %}
-        </select>
-      </div>
-      <p class="text-xs text-gray-500">Es werden nur die Canvas-Feldwerte kopiert. Initiative, Hierarchie und gesammelte Daten werden nicht übernommen.</p>
-      <button type="submit" class="rounded bg-brand-blue px-4 py-2 font-bold text-white hover:bg-brand-cyan">Vorlage verwenden</button>
-    </form>
-  </div>
-</dialog>
+  </form>
+{% endcall %}
 {% endif %}
 {% endblock %}

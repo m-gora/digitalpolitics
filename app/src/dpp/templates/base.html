@@ -15,7 +15,7 @@
   <script src="/static/js/htmx.min.js" defer></script>
   {% block head_extra %}{% endblock %}
 </head>
-<body class="font-sans bg-gray-50 text-gray-900" {% block body_attrs %}{% endblock %}>
+<body class="font-sans bg-surface text-ink-soft" {% block body_attrs %}{% endblock %}>
   <div id="app-shell" hx-boost="true" hx-target="#app-shell" hx-select="#app-shell" hx-swap="outerHTML" hx-indicator="#request-indicator">
   <header class="bg-brand-blue text-white">
     <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
@@ -57,12 +57,12 @@
       </div>
       <div class="flex min-w-0 flex-wrap items-center gap-2">
         <form method="post" action="/_dev/impersonate" hx-boost="false" class="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:flex-none">
-          <select name="persona_id" class="min-w-0 max-w-full flex-1 truncate rounded border-brand-blue text-sm sm:max-w-xs">
+          <select name="persona_id" class="min-w-0 max-w-full flex-1 truncate rounded-control border-brand-blue text-sm sm:max-w-xs">
             {% for persona in dev_personas %}
               <option value="{{ persona.id }}">{{ persona.label }}</option>
             {% endfor %}
           </select>
-          <button type="submit" class="bg-brand-blue text-white px-2 py-1 rounded font-bold">
+          <button type="submit" class="bg-brand-blue text-white px-2 py-1 rounded-control font-bold">
             Anmelden als
           </button>
         </form>
@@ -76,7 +76,7 @@
   </div>
   {% endif %}
 
-  <div id="request-indicator" class="htmx-indicator pointer-events-none fixed right-4 top-20 z-50 rounded bg-brand-blue text-white px-4 py-2 shadow-lg" role="status" aria-live="polite">
+  <div id="request-indicator" class="htmx-indicator pointer-events-none fixed right-4 top-20 z-50 rounded-control bg-brand-blue text-white px-4 py-2 shadow-overlay" role="status" aria-live="polite">
     <span class="inline-block animate-spin mr-2" aria-hidden="true">◌</span>Wird geladen …
   </div>
 
@@ -125,7 +125,6 @@
     });
   </script>
 
-  {% if identity %}
   <script>
     document.body.addEventListener("click", (event) => {
       const trigger = event.target.closest("[data-open-dialog]");
@@ -133,7 +132,10 @@
       const dialog = document.getElementById(trigger.dataset.openDialog);
       if (dialog instanceof HTMLDialogElement && !dialog.open) dialog.showModal();
     });
+  </script>
 
+  {% if identity %}
+  <script>
     // Keep one SSE connection across htmx navigation; read the current main
     // element each time because boosted navigation replaces it.
     const dppEvents = new EventSource("/events/canvas");

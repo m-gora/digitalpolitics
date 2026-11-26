@@ -1,5 +1,5 @@
-const CACHE='crowd-respondent-v1';
-self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(['/static/css/output.css','/static/crowd/crowd.css','/static/crowd/respondent.js']))));
+const CACHE='crowd-respondent-v2';
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(['/static/css/output.css','/static/crowd/respondent.js']))));
 self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
 self.addEventListener('message',event=>{
   if(event.data?.type==='CACHE_URL'&&typeof event.data.url==='string'){

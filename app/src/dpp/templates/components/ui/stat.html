@@ -1,0 +1,15 @@
+{# Single figure with a label, e.g. a score card or a summary tile.
+
+   props:
+     value   already formatted number or short string
+     label   what the figure means
+     hint    optional subline (scale, method, caveat)
+#}
+
+{% macro stat(value, label, hint=None) -%}
+<div>
+  <p class="stat__value">{{ value }}</p>
+  <p class="stat__label">{{ label }}</p>
+  {% if hint %}<p class="stat__hint">{{ hint }}</p>{% endif %}
+</div>
+{%- endmacro %}

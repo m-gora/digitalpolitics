@@ -1,0 +1,11 @@
+{# Status pill.
+
+   props:
+     label   text
+     tone    neutral | info | warning | success | danger
+     size    sm | md | lg
+#}
+
+{% macro badge(label, tone="neutral", size="sm") -%}
+<span class="badge badge--{{ tone }} badge--{{ size }}">{{ label }}</span>
+{%- endmacro %}

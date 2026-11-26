@@ -1,0 +1,19 @@
+{# Card shell. Use as a block component:
+
+     {% call card(padding="lg") %}
+       <h3 class="card__title">Titel</h3>
+       ...
+     {% endcall %}
+
+   props:
+     variant   default | outlined | interactive
+     padding   none | sm | md | lg
+     class_name  extra layout utilities (grid spans, margins)
+
+   Sections (optional): .card__header / .card__title / .card__body / .card__footer
+   .card__body carries its own padding, so pair it with padding="none".
+#}
+
+{% macro card(variant="default", padding="md", class_name="") -%}
+<div class="card card--{{ variant }} card--pad-{{ padding }}{% if class_name %} {{ class_name }}{% endif %}">{{ caller() }}</div>
+{%- endmacro %}
