@@ -57,12 +57,12 @@
       </div>
       <div class="flex min-w-0 flex-wrap items-center gap-2">
         <form method="post" action="/_dev/impersonate" hx-boost="false" class="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:flex-none">
-          <select name="persona_id" class="min-w-0 max-w-full flex-1 truncate rounded border-brand-blue text-sm sm:max-w-xs">
+          <select name="persona_id" class="min-w-0 max-w-full flex-1 truncate rounded-control border-brand-blue text-sm sm:max-w-xs">
             {% for persona in dev_personas %}
               <option value="{{ persona.id }}">{{ persona.label }}</option>
             {% endfor %}
           </select>
-          <button type="submit" class="bg-brand-blue text-white px-2 py-1 rounded font-bold">
+          <button type="submit" class="bg-brand-blue text-white px-2 py-1 rounded-control font-bold">
             Anmelden als
           </button>
         </form>
@@ -76,7 +76,7 @@
   </div>
   {% endif %}
 
-  <div id="request-indicator" class="htmx-indicator pointer-events-none fixed right-4 top-20 z-50 rounded bg-brand-blue text-white px-4 py-2 shadow-lg" role="status" aria-live="polite">
+  <div id="request-indicator" class="htmx-indicator pointer-events-none fixed right-4 top-20 z-50 rounded-control bg-brand-blue text-white px-4 py-2 shadow-overlay" role="status" aria-live="polite">
     <span class="inline-block animate-spin mr-2" aria-hidden="true">◌</span>Wird geladen …
   </div>
 

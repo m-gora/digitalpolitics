@@ -35,7 +35,7 @@ async def test_landing_shows_available_and_coming_soon_modules(client):
     assert "module-carousel flex snap-x snap-mandatory" in response.text
     assert "w-[85%] shrink-0 snap-center" in response.text
     assert "sm:grid sm:grid-cols-3" in response.text
-    assert "module-card-title min-h-14" in response.text
+    assert "module-card__title" in response.text
     assert response.text.index(">Kampagnen</h2>") < response.text.index(">Infostand</h2>")
     assert response.text.index(">Infostand</h2>") < response.text.index(">Crowdsourcing</h2>")
     assert response.text.index(">Crowdsourcing</h2>") < response.text.index(">Unterstützungsunterschriften</h2>")

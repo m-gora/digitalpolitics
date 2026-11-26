@@ -163,6 +163,7 @@ composition of primitives.
 | List row | `.list-row`, `--interactive/--split`, `__head/__body/__title/__meta/__aside` | `list_row()` (block) | `href` toggles link + hover; `split` for body/aside on wide screens |
 | Action bar | `.action-bar`, `__group` | `action_bar()` (block) | top rule; groups push primary right |
 | Stepper | `.stepper`, `__item/--current/--done/--upcoming`, `__number/__sep` | `stepper()` | data-driven; `state` drives current/done/upcoming |
+| Module card | `.module-card`, `--interactive/--dashed`, `__icon/__title/__status/__body/__footer` | `module_card()` (block for icon) | landing page; `href` toggles the interactive variant, `variant="dashed"` marks planned modules |
 
 ## Rules
 
@@ -182,10 +183,10 @@ composition of primitives.
 | Tokens, type scale, base layer, Balken | **done** (v1 foundations) |
 | Primitives: button, icon button, badge, card, alert, dialog, fields, back link, empty state, stat | **done** |
 | Styleguide `/_design` | foundations, primitives and patterns render |
-| Patterns: page header, filter bar, list row, action bar, stepper | **done** (v1) |
-| Template migration | lists, campaigns, initiatives detail and the crowd suite migrated; landing, auth and legacy CSS cleanup next |
+| Patterns: page header, filter bar, list row, action bar, stepper, module card | **done** (v1) |
+| Template migration | **done** — lists, campaigns, initiatives, crowd suite, landing, auth and the shell use the design system |
 | Status banner | keep using `alert()`; add a pattern only if a page needs more than one |
-| Legacy CSS (`help-badge`, `district-editor-dialog`, module carousel) | `crowd.css` retired; remaining legacy blocks fold into components during the landing/auth pass |
+| Legacy CSS | retired: `crowd.css`, `district-editor-dialog`; `help-badge` and the module carousel now use tokens |
 
 ## Portability
 

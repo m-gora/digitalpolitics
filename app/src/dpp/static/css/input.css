@@ -930,9 +930,105 @@
   opacity: 1;
 }
 
-.module-card-title {
+/* Module card on the landing page. The card owns its padding, icon tile,
+   title and footer; the surrounding carousel only handles layout/scroll. */
+
+.module-card {
+  display: flex;
+  min-height: 18rem;
+  flex-direction: column;
+  padding: 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-white);
+  box-shadow: var(--shadow-card);
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (min-width: 640px) {
+  .module-card {
+    padding: 1.5rem;
+  }
+}
+
+.module-card--interactive {
+  transition:
+    transform 150ms var(--ease-standard),
+    border-color 150ms var(--ease-standard),
+    box-shadow 150ms var(--ease-standard);
+}
+
+.module-card--interactive:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-brand-cyan);
+  box-shadow: var(--shadow-raised);
+}
+
+.module-card--interactive:focus-visible {
+  outline: 2px solid var(--color-brand-cyan);
+  outline-offset: 2px;
+}
+
+.module-card--dashed {
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+}
+
+.module-card__icon {
+  display: inline-flex;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-control);
+  background: var(--color-brand-blue);
+  color: var(--color-brand-yellow);
+}
+
+.module-card--dashed .module-card__icon {
+  background: var(--color-surface-tint-blue);
+  color: var(--color-brand-blue);
+}
+
+.module-card__title {
+  min-height: 3.5rem;
   overflow-wrap: anywhere;
   hyphens: auto;
+  font-size: 1.125rem;
+  font-weight: 900;
+  line-height: 1.15;
+  color: var(--color-brand-blue);
+}
+
+@media (min-width: 640px) {
+  .module-card__title {
+    font-size: 1.25rem;
+  }
+}
+
+.module-card__status {
+  margin-top: 0.5rem;
+}
+
+.module-card__body {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-ink-soft);
+}
+
+.module-card__footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-brand-blue);
+}
+
+.module-card--interactive:hover .module-card__footer {
+  color: var(--color-brand-blue-700);
 }
 
 .module-carousel {
@@ -942,16 +1038,6 @@
 
 .module-carousel::-webkit-scrollbar {
   display: none;
-}
-
-.district-editor-dialog[open] {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  max-height: calc(100dvh - 2rem);
-  margin: 0;
-  overflow-y: auto;
-  transform: translate(-50%, -50%);
 }
 
 .help-badge {
@@ -981,7 +1067,7 @@
   height: 1.25rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-gray-500);
+  border: 1px solid var(--color-ink-soft);
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 700;
@@ -1008,11 +1094,11 @@
   left: 0;
   width: min(20rem, calc(100vw - 2rem));
   padding: 0.75rem;
-  border: 1px solid var(--color-gray-300);
-  border-radius: 0.5rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
   background: var(--color-white);
-  color: var(--color-gray-900);
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.15), 0 4px 6px -4px rgb(0 0 0 / 0.15);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-overlay);
   font-size: 0.875rem;
   font-weight: 400;
   line-height: 1.5;

@@ -12,6 +12,7 @@
 {% from "components/patterns/action_bar.html" import action_bar %}
 {% from "components/patterns/filter_bar.html" import filter_bar %}
 {% from "components/patterns/list_row.html" import list_row %}
+{% from "components/patterns/module_card.html" import module_card %}
 {% from "components/patterns/page_header.html" import page_header %}
 {% from "components/patterns/stepper.html" import stepper %}
 
@@ -538,6 +539,39 @@
         <div class="mt-3">{{ badge("Laufend", tone="info") }}</div>
       {% endcall %}
     </div>
+
+    <div class="mt-6">
+      <p class="type-eyebrow mb-3">Modulkachel</p>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% call module_card(
+          "Kampagnen",
+          "Kampagnen strategisch planen, gemeinsam weiterentwickeln und Erfahrungen für die nächste Aktion festhalten.",
+          "Zum Kampagnenmodul",
+          href="#muster",
+          status="Verfügbar",
+          status_tone="success"
+        ) %}
+          <svg viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+            <path d="M8 7h8M8 11h8" />
+          </svg>
+        {% endcall %}
+
+        {% call module_card(
+          "Unterstützungsunterschriften",
+          "Unterstützungsunterschriften für politische Vorhaben und Wahlzulassungen organisieren und nachverfolgen.",
+          "In Planung",
+          status="Bald verfügbar",
+          variant="dashed"
+        ) %}
+          <svg viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 10v4h4l5 4V6l-5 4H3Z" />
+            <path d="M16 9a5 5 0 0 1 0 6M19 6a9 9 0 0 1 0 12" />
+          </svg>
+        {% endcall %}
+      </div>
+    </div>
   </div>
 </section>
 
@@ -563,8 +597,8 @@
   <h2 class="type-h2">Noch offen</h2>
   <div class="rule mt-3 mb-5"></div>
   <ul class="type-body-sm list-disc pl-5 text-ink-soft">
-    <li>Migration der Templates: solange mischen Seiten alte Grays und neue Tokens.</li>
-    <li>Legacy-CSS (<code class="font-mono text-xs">help-badge</code>, <code class="font-mono text-xs">district-editor-dialog</code>, Modulkarussell) in die Bausteine überführen.</li>
+    <li>Die Template-Migration ist abgeschlossen; neue Seiten sollen die Bausteine aus diesem Katalog verwenden.</li>
+    <li>Barrierefreiheit wird bei neuen Bausteinen mitgeprüft, nicht nachträglich dokumentiert.</li>
   </ul>
 </section>
 {% endblock %}
